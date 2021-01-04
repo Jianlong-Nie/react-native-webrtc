@@ -52,6 +52,12 @@ io.sockets.on("connection", (socket) => {
   socket.on("login", () => {
     socket.to(broadcaster).emit("login", socket.id);
   });
+  socket.on("refuse", (userid) => {
+    const user = users.find((item)=> item.userid ==userid);
+    if (user) {
+      socket.to(user.socketId).emit("refuse", "refuse");
+    }
+  });
   socket.on("disconnect", (message) => {
     console.log("disconnect"+message);
     console.log('====================================');
@@ -94,9 +100,9 @@ io.sockets.on("connection", (socket) => {
     // console.log(users);
     // console.log('====================================');
       const user = users.find((item)=> item.userid ==invitedUser);
-     if (user) {
+     
        socket.to(user.socketId).emit("candidate", message);
-     }
+     
     
   });
   socket.on('comment', (id, message) => {

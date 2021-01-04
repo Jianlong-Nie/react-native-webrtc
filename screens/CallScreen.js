@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {View, StyleSheet} from 'react-native';
+import {View, StyleSheet,Alert} from 'react-native';
 import {Text} from 'react-native-paper';
 import {Button} from 'react-native-paper';
 import {TextInput} from 'react-native-paper';
@@ -83,16 +83,6 @@ export default function CallScreen({route,navigation, ...props}) {
       socket.on('login', (id, remoteOfferDescription) => {
         console.log('Login');
       });
-      // socket.on('userexits', (id, message) => {
-      //   if (socket.connected) socket.close(); 
-      //   alert("The current user already exists");
-      //   try {
-      //     navigation.goBack();
-      //   } catch (error) {
-          
-      //   }
-        
-      // });
       socket.on('offer', (name, remoteOfferDescription) => {
         //alert("receive,offer");
         handleOffer(name,remoteOfferDescription);
@@ -101,12 +91,15 @@ export default function CallScreen({route,navigation, ...props}) {
         handleAnswer(remoteOfferDescription);
         console.log('Answer');
       });
-      socket.on('user-not-in', id => {
+      socket.on('refuse', () => {
+        setCalling(false);
+        alert("The user rejects your call");
+      });
+      socket.on('user-not-in', () => {
+        setCalling(false);
         alert("The user you invited is not logged in");
       });
       socket.on('disconnectPeer', id => {
-        // peerConnections.current.get(id).close();
-        // peerConnections.current.delete(id);
         handleLeave();
         console.log('Leave');
       });
@@ -166,17 +159,6 @@ export default function CallScreen({route,navigation, ...props}) {
     };
   }, []);
 
-  const send = (message) => {
-    //attach the other peer username to our messages
-    if (connectedUser) {
-      message.name = connectedUser;
-      console.log('Connected iser in end----------', message);
-    }
-   // alert(message.type);
-    socket.emit(message.type, message);
-   // conn.send(JSON.stringify(message));
-  };
-
   const onCall = async () => {
     setCalling(true);
     connectedUser = callToUsername;
@@ -191,16 +173,37 @@ export default function CallScreen({route,navigation, ...props}) {
   const handleOffer = async (name, offer) => {
     console.log(name + ' is calling you.');
     connectedUser = name;
-    try {
-      await yourConn.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await yourConn.createAnswer();
-     // alert("give you answer");
-      await yourConn.setLocalDescription(answer);
-      socket.emit('answer', connectedUser, answer);
+    Alert.alert(
+      'receive calling',
+      (name + ' is calling you.'),
+      [
+        {
+          text: 'decline',
+          onPress: () => { socket.emit('refuse', connectedUser);},
+          style: 'cancel'
+        },
+        {
+          text: 'Accept',
+          onPress: async () => {
+            
+            try {
+              await yourConn.setRemoteDescription(new RTCSessionDescription(offer));
+              const answer = await yourConn.createAnswer();
+            // alert("give you answer");
+              await yourConn.setLocalDescription(answer);
+              socket.emit('answer', connectedUser, answer);
+              
+            } catch (err) {
+              console.log('Offerr Error', err);
+            }
+          }
+        },
+        
       
-    } catch (err) {
-      console.log('Offerr Error', err);
-    }
+      ],
+      { cancelable: false }
+    );
+    
   };
 
   //when we got an answer from a remote user
