@@ -69,10 +69,13 @@ io.sockets.on("connection", (socket) => {
     console.log(users);
     console.log('====================================');
     const user = users.find((item)=> item.userid ==userid);
-    console.log('====================================');
-    console.log("target socketId："+user.socketId);
-    console.log('====================================');
-    socket.to(user.socketId).emit("offer", sender, message);
+    if (user) {
+      console.log("user in");
+      socket.to(user.socketId).emit("offer", sender, message);
+     }else{
+      console.log("user not in");
+      socket.emit("user-not-in", sender, message);
+     }
   });
   socket.on("answer", (userid, message) => {
     console.log("anwser"+userid);
@@ -91,9 +94,9 @@ io.sockets.on("connection", (socket) => {
     // console.log(users);
     // console.log('====================================');
       const user = users.find((item)=> item.userid ==invitedUser);
-    // if (user) {
+     if (user) {
        socket.to(user.socketId).emit("candidate", message);
-    // }
+     }
     
   });
   socket.on('comment', (id, message) => {

@@ -101,7 +101,9 @@ export default function CallScreen({route,navigation, ...props}) {
         handleAnswer(remoteOfferDescription);
         console.log('Answer');
       });
-      
+      socket.on('user-not-in', id => {
+        alert("The user you invited is not logged in");
+      });
       socket.on('disconnectPeer', id => {
         // peerConnections.current.get(id).close();
         // peerConnections.current.delete(id);
