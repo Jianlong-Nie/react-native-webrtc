@@ -1,0 +1,15 @@
+{
+  "name": "webrtc-signaling-broker",
+  "version": "0.0.1",
+  "description": "a proof of concept webrtc signaling broker",
+  "main": "src/index.js",
+  "dependencies": {
+    "express": "^4.17.1",
+    "socket.io": "^3.0.4"
+  },
+  "scripts": {
+    "start": "node ./src/index.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
