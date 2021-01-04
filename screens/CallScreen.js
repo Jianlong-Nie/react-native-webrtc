@@ -206,6 +206,7 @@ export default function CallScreen({route,navigation, ...props}) {
   //when we got an answer from a remote user
   const handleAnswer = answer => {
     //alert("tell you:received");
+    setCalling(false);
     yourConn.setRemoteDescription(new RTCSessionDescription(answer));
   };
 
