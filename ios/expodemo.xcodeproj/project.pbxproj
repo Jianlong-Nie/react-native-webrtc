@@ -339,7 +339,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.mashang.expotest;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashang.webrtctest;
 				PRODUCT_NAME = expotest;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -369,7 +369,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.mashang.expotest;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mashang.webrtctest;
 				PRODUCT_NAME = expotest;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
