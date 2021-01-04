@@ -96,12 +96,15 @@ io.sockets.on("connection", (socket) => {
   });
   socket.on("candidate", (message) => {
     console.log("candidate"+invitedUser);
+    if (!invitedUser) {
+      return;
+    }
     // console.log('====================================');
     // console.log(users);
     // console.log('====================================');
       const user = users.find((item)=> item.userid ==invitedUser);
      
-       socket.to(user.socketId).emit("candidate", message);
+      socket.to(user.socketId).emit("candidate", message);
      
     
   });
