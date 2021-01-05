@@ -22,8 +22,7 @@ export default function CallScreen({route,navigation, ...props}) {
   const [calling, setCalling] = useState(false);
   const [localStream, setLocalStream] = useState({toURL: () => null});
   const [remoteStream, setRemoteStream] = useState({toURL: () => null});
- const [socket] = useState(Socket('ws://207.254.40.176:4000'));
-  //const [socket] = useState(Socket('ws://192.168.2.176:4000'));
+  const [socket] = useState(Socket('ws://192.168.2.176:4000'));
   const [yourConn, setYourConn] = useState(
     //change the config as you need
   new RTCPeerConnection({
@@ -132,15 +131,15 @@ export default function CallScreen({route,navigation, ...props}) {
       mediaDevices
         .getUserMedia({
           audio: true,
-          // video: {
-          //   mandatory: {
-          //     minWidth: 500, // Provide your own width, height and frame rate here
-          //     minHeight: 300,
-          //     minFrameRate: 30,
-          //   },
-          //   facingMode: isFront ? 'user' : 'environment',
-          //   optional: videoSourceId ? [{sourceId: videoSourceId}] : [],
-          //},
+          video: {
+            mandatory: {
+              minWidth: 500, // Provide your own width, height and frame rate here
+              minHeight: 300,
+              minFrameRate: 30,
+            },
+            facingMode: isFront ? 'user' : 'environment',
+            optional: videoSourceId ? [{sourceId: videoSourceId}] : [],
+          },
         })
         .then(stream => {
           // Got stream!
@@ -252,11 +251,11 @@ export default function CallScreen({route,navigation, ...props}) {
 
       <View style={styles.videoContainer}>
         <View style={[styles.videos, styles.localVideos]}>
-         
+          <Text>Your Video</Text>
           <RTCView streamURL={localStream.toURL()} style={styles.localVideo} />
         </View>
         <View style={[styles.videos, styles.remoteVideos]}>
-          
+          <Text>Friends Video</Text>
           <RTCView
             streamURL={remoteStream.toURL()}
             style={styles.remoteVideo}
@@ -272,7 +271,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     flex: 1,
     padding: 20,
-    justifyContent:'center'
   },
   inputField: {
     marginBottom: 10,
@@ -280,28 +278,31 @@ const styles = StyleSheet.create({
   },
   videoContainer: {
     flex: 1,
+    minHeight: 450,
   },
   videos: {
     width: '100%',
     flex: 1,
     position: 'relative',
     overflow: 'hidden',
+
     borderRadius: 6,
   },
   localVideos: {
-    height: 0.5,
+    height: 100,
     marginBottom: 10,
   },
   remoteVideos: {
-    height: 0.5,
+    height: 400,
   },
   localVideo: {
-  
-    height: 1,
-    width: 1,
+    backgroundColor: '#f2f2f2',
+    height: '100%',
+    width: '100%',
   },
   remoteVideo: {
-    height: 1,
-    width: 1,
+    backgroundColor: '#f2f2f2',
+    height: '100%',
+    width: '100%',
   },
 });
