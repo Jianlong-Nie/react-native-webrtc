@@ -61,6 +61,7 @@ function CallScreen({
       dispatch({ type: 'call/setSocketActive', payload: true });
       if (localStream) socket.emit('broadcaster', userId);
       socket.on('candidate', (candidate) => {
+        debugger;
         dispatch({ type: 'call/handleCandidate', payload: candidate });
         console.log('Candidate');
       });
@@ -96,6 +97,13 @@ function CallScreen({
       if (socket.connected) socket.close(); // close the socket if the view is unmounted
     };
   }, []);
+  const onCall = async () => {
+    // create an offer
+    const localDescription = await yourConn.createOffer();
+    await yourConn.setLocalDescription(localDescription);
+    debugger;
+    socket.emit('join-room', userId, callToUsername, yourConn.localDescription);
+  };
 
   useEffect(() => {
     dispatch({ type: 'call/getMedia' });

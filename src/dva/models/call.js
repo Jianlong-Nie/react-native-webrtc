@@ -76,7 +76,7 @@ export default {
   effects: {
     *getMedia({ payload }, { call, put, select }) {
       const yourConn = yield select((state) => state.call.yourConn);
-      const socket = yield select((state) => state.call.yourConn);
+      const socket = yield select((state) => state.call.socket);
       let isFront = false;
       const sourceInfos = yield call(mediaDevices.enumerateDevices);
       let videoSourceId;
@@ -121,6 +121,7 @@ export default {
         type: 'setCalling',
         payload: false,
       });
+      debugger;
       const yourConn = yield select((state) => state.call.yourConn);
       console.log('Candidate ----------------->', payload);
       yourConn.addIceCandidate(new RTCIceCandidate(payload));
@@ -135,17 +136,21 @@ export default {
     },
 
     *handleOffer({ payload }, { call, put, select }) {
-      const { name, offer } = payload;
+      const { name, remoteOfferDescription } = payload;
       const yourConn = yield select((state) => state.call.yourConn);
+      const socket = yield select((state) => state.call.socket);
+      debugger;
       try {
         yield call(
-          yourConn.setRemoteDescription,
-          new RTCSessionDescription(offer)
+          [yourConn, yourConn.setRemoteDescription],
+          new RTCSessionDescription(remoteOfferDescription)
         );
-
-        const answer = yield call(yourConn.createAnswer);
+        debugger;
+        const answer = yield call([yourConn, yourConn.createAnswer]);
+        debugger;
         // alert("give you answer");
-        yield call(yourConn.setLocalDescription, answer);
+        yield call([yourConn, yourConn.setLocalDescription], answer);
+        debugger;
         socket.emit('answer', name, answer);
       } catch (err) {
         console.log('Offerr Error', err);
@@ -153,15 +158,17 @@ export default {
     },
     *callSomeOne({ payload }, { call, put, select }) {
       const { yourConn, callToUsername } = yield select((state) => state.call);
+      const socket = yield select((state) => state.call.socket);
+      const userId = yield select((state) => state.user.userId);
       yield put({
         type: 'setCalling',
         payload: true,
       });
       // create an offer
       debugger;
-      const localDescription = yield call(yourConn.createOffer);
+      const localDescription = yield call([yourConn, yourConn.createOffer]);
       debugger;
-      yield call(yourConn.setLocalDescription, localDescription);
+      yield call([yourConn, yourConn.setLocalDescription], localDescription);
       debugger;
       socket.emit(
         'join-room',
