@@ -22,7 +22,7 @@ export default function CallScreen({route,navigation, ...props}) {
   const [calling, setCalling] = useState(false);
   const [localStream, setLocalStream] = useState({toURL: () => null});
   const [remoteStream, setRemoteStream] = useState({toURL: () => null});
-  const [socket] = useState(Socket('ws://192.168.2.176:4000'));
+  const [socket] = useState(Socket('ws://192.168.2.201:4000'));
 
   const [yourConn, setYourConn] = useState(
     //change the config as you need

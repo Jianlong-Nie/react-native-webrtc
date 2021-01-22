@@ -1,23 +1,36 @@
-import { StatusBar } from 'expo-status-bar';
+import 'react-native-gesture-handler';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import {NavigationContainer} from '@react-navigation/native';
-import {createStackNavigator} from '@react-navigation/stack';
-import LoginScreen from './screens/LoginScreen';
-import CallScreen from './screens/CallScreen';
+import Router from './src/routers/router';
+import { connect } from 'react-redux';
+import { Provider } from '@ant-design/react-native';
+import {UnAuthRouter} from './src/routers/router';
+import { getItem } from './src/utils/storage';
+// require('react-native').unstable_enableLogBox()
 
-const Stack = createStackNavigator();
-export default function App() {
+
+export const AppStateContext = React.createContext();
+
+const AppStateProvider = props => {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{headerShown: false}}
-        />
-       <Stack.Screen name="Call" component={CallScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <AppStateContext.Provider>
+      {props.children}
+    </AppStateContext.Provider>
+  );
+};
+
+const App: () => React$Node =  ({ token,dispatch }) => {
+  dispatch({type:'user/autoLogin'});
+  return (
+   <Provider>
+      <AppStateProvider>
+          <UnAuthRouter/>
+      </AppStateProvider>
+    </Provider> 
   );
 }
+const mapStateToProps = ({
+  user:{token}
+}) => ({
+  token
+});
+export default connect(mapStateToProps)(App);
