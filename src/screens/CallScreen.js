@@ -1,12 +1,10 @@
-import React, {useEffect, useState} from 'react';
-import {View, StyleSheet} from 'react-native';
-import {Text} from 'react-native-paper';
-import {Button} from 'react-native-paper';
-import {TextInput} from 'react-native-paper';
-import Socket from 'socket.io-client';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Text } from 'react-native-paper';
+import { Button } from 'react-native-paper';
+import { TextInput } from 'react-native-paper';
 import InCallManager from 'react-native-incall-manager';
 import { connect } from 'react-redux';
-
 import {
   RTCPeerConnection,
   RTCIceCandidate,
@@ -16,51 +14,38 @@ import {
 } from 'react-native-webrtc';
 import { useNavigation } from '@react-navigation/native';
 
-function CallScreen({ userId }) {  
-  
+function CallScreen({
+  dispatch,
+  userId,
+  socketActive,
+  calling,
+  localStream,
+  remoteStream,
+  socket,
+  yourConn,
+}) {
   const navigation = useNavigation();
-  let connectedUser;
-  const [socketActive, setSocketActive] = useState(false);
-  const [calling, setCalling] = useState(false);
-  const [localStream, setLocalStream] = useState({toURL: () => null});
-  const [remoteStream, setRemoteStream] = useState({toURL: () => null});
-  const [socket] = useState(Socket('ws://192.168.2.201:4000'));
-
-  const [yourConn, setYourConn] = useState(
-    //change the config as you need
-  new RTCPeerConnection({
-      iceServers: [
-        {
-          urls: 'stun:stun.l.google.com:19302',  
-        }, {
-          urls: 'stun:stun1.l.google.com:19302',    
-        }, {
-          urls: 'stun:stun2.l.google.com:19302',    
-        }
-
-      ],
-    }),
-  );
-  const [callToUsername, setCallToUsername] = useState(null);
+  //change the config as you need
   useEffect(() => {
     navigation.setOptions({
       title: 'Your ID - ' + userId,
       headerRight: () => (
-        <Button mode="text" onPress={()=>{ navigation.push('LoginScreen'); }} style={{paddingRight: 10}}>
+        <Button
+          mode="text"
+          onPress={() => {
+            navigation.push('LoginScreen');
+          }}
+          style={{ paddingRight: 10 }}
+        >
           Logout
         </Button>
       ),
     });
   }, []);
-
-  /**
-   * Calling Stuff
-   */
-
   useEffect(() => {
-    if (socketActive && userId.length > 0) {
+    if (socketActive) {
       try {
-        InCallManager.start({media: 'audio'});
+        InCallManager.start({ media: 'audio' });
         InCallManager.setForceSpeakerphoneOn(true);
         InCallManager.setSpeakerphoneOn(true);
       } catch (err) {
@@ -68,16 +53,15 @@ function CallScreen({ userId }) {
       }
       console.log(InCallManager);
       socket.emit('login', userId);
-
     }
-  }, [socketActive, userId]);
+  }, [socketActive]);
 
   useEffect(() => {
     socket.on('connect', () => {
-      setSocketActive(true);
-      if (localStream) socket.emit('broadcaster',userId);
+      dispatch({ type: 'call/setSocketActive', payload: true });
+      if (localStream) socket.emit('broadcaster', userId);
       socket.on('candidate', (candidate) => {
-        handleCandidate(candidate);
+        dispatch({ type: 'call/handleCandidate', payload: candidate });
         console.log('Candidate');
       });
       socket.on('login', (id, remoteOfferDescription) => {
@@ -85,19 +69,26 @@ function CallScreen({ userId }) {
       });
       socket.on('offer', (name, remoteOfferDescription) => {
         //alert("receive,offer");
-        handleOffer(name,remoteOfferDescription);
+        dispatch({
+          type: 'call/handleOffer',
+          payload: { name, remoteOfferDescription },
+        });
       });
       socket.on('answer', (id, remoteOfferDescription) => {
-        handleAnswer(remoteOfferDescription);
+        dispatch({
+          type: 'call/handleAnswer',
+          payload: remoteOfferDescription,
+        });
         console.log('Answer');
       });
-      socket.on('user-not-in', id => {
-        alert("The user you invited is not logged in");
+      socket.on('user-not-in', (id) => {
+        alert('The user you invited is not logged in');
       });
-      socket.on('disconnectPeer', id => {
-        // peerConnections.current.get(id).close();
-        // peerConnections.current.delete(id);
-        handleLeave();
+      socket.on('disconnectPeer', (id) => {
+        dispatch({
+          type: 'call/handleLeave',
+          payload: {},
+        });
         console.log('Leave');
       });
     });
@@ -107,124 +98,29 @@ function CallScreen({ userId }) {
   }, []);
 
   useEffect(() => {
-    let isFront = false;
-    mediaDevices.enumerateDevices().then(sourceInfos => {
-      let videoSourceId;
-      for (let i = 0; i < sourceInfos.length; i++) {
-        const sourceInfo = sourceInfos[i];
-        if (
-          sourceInfo.kind == 'videoinput' &&
-          sourceInfo.facing == (isFront ? 'front' : 'environment')
-        ) {
-          videoSourceId = sourceInfo.deviceId;
-        }
-      }
-      mediaDevices
-        .getUserMedia({
-          audio: true,
-          video: {
-            mandatory: {
-              minWidth: 500, // Provide your own width, height and frame rate here
-              minHeight: 300,
-              minFrameRate: 30,
-            },
-            facingMode: isFront ? 'user' : 'environment',
-            optional: videoSourceId ? [{sourceId: videoSourceId}] : [],
-          },
-        })
-        .then(stream => {
-          // Got stream!
-          setLocalStream(stream);
-          // setup stream listening
-          yourConn.addStream(stream);
-        })
-        .catch(error => {
-          // Log error
-        });
-    });
-
-    yourConn.onaddstream = event => {
-      console.log('On Add Stream', event);
-      setRemoteStream(event.stream);
-    };
-
-    // // Setup ice handling
-    yourConn.onicecandidate = event => {
-      if (event.candidate) {
-        socket.emit('candidate', event.candidate);
-      }
-    };
+    dispatch({ type: 'call/getMedia' });
   }, []);
-
-  const onCall = async () => {
-    setCalling(true);
-    connectedUser = callToUsername;
-    // create an offer
-    const localDescription = await yourConn.createOffer();
-    await yourConn.setLocalDescription(localDescription);
-    debugger
-    socket.emit('join-room',userId, callToUsername, yourConn.localDescription);
-  };
-
-  //when somebody sends us an offer
-  const handleOffer = async (name, offer) => {
-    console.log(name + ' is calling you.');
-    connectedUser = name;
-    try {
-      await yourConn.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await yourConn.createAnswer();
-     // alert("give you answer");
-      await yourConn.setLocalDescription(answer);
-      socket.emit('answer', connectedUser, answer);
-      
-    } catch (err) {
-      console.log('Offerr Error', err);
-    }
-  };
-
-  //when we got an answer from a remote user
-  const handleAnswer = answer => {
-    //alert("tell you:received");
-    setCalling(false);
-    yourConn.setRemoteDescription(new RTCSessionDescription(answer));
-  };
-
-  //when we got an ice candidate from a remote user
-  const handleCandidate = (candidate) => {
-    setCalling(false);
-    console.log('Candidate ----------------->', candidate);
-    yourConn.addIceCandidate(new RTCIceCandidate(candidate));
-    
-  };
-  
-  const handleLeave = () => {
-    connectedUser = null;
-    setRemoteStream({toURL: () => null});
-    yourConn.close();
-    yourConn.onicecandidate = null;
-    yourConn.onaddstream = null;
-  };
-  /**
-   * Calling Stuff Ends
-   */
-  console.log("remoteStream:"+remoteStream.toURL());
-  console.log("localStream:"+localStream.toURL());
+  console.log('remoteStream:' + remoteStream.toURL());
+  console.log('localStream:' + localStream.toURL());
   return (
     <View style={styles.root}>
       <View style={styles.inputField}>
         <TextInput
           label="Enter Friends Id"
           mode="outlined"
-          style={{marginBottom: 7}}
-          onChangeText={text => setCallToUsername(text)}
+          style={{ marginBottom: 7 }}
+          onChangeText={(text) =>
+            dispatch({ type: 'call/setCallToUsername', payload: text })
+          }
         />
         <Button
           mode="contained"
-          onPress={onCall}
+          onPress={() => dispatch({ type: 'call/callSomeOne', payload: {} })}
           loading={calling}
           //   style={styles.btn}
           contentStyle={styles.btnContent}
-          disabled={!(socketActive && userId.length > 0)}>
+          disabled={!(socketActive && userId.length > 0)}
+        >
           Call
         </Button>
       </View>
@@ -246,9 +142,16 @@ function CallScreen({ userId }) {
   );
 }
 const mapStateToProps = ({
-  user:{userId}
+  user: { userId },
+  call: { socketActive, calling, localStream, remoteStream, socket, yourConn },
 }) => ({
-  userId
+  userId,
+  socketActive,
+  calling,
+  localStream,
+  remoteStream,
+  socket,
+  yourConn,
 });
 
 export default connect(mapStateToProps)(CallScreen);

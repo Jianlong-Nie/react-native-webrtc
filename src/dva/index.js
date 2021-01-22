@@ -5,13 +5,15 @@ import { createLogger } from 'redux-logger';
 import App from '../../App';
 import UserModel from './models/user';
 import AppModel from './models/app';
+import CallModel from './models/call';
 
 const options = {
     initialState: {},
     // 加载model
     models: [
       UserModel,
-      AppModel
+      AppModel,
+      CallModel
     ],
     onAction: [
       createLogger(),
