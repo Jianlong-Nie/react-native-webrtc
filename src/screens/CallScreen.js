@@ -5,6 +5,7 @@ import {Button} from 'react-native-paper';
 import {TextInput} from 'react-native-paper';
 import Socket from 'socket.io-client';
 import InCallManager from 'react-native-incall-manager';
+import { connect } from 'react-redux';
 
 import {
   RTCPeerConnection,
@@ -13,10 +14,11 @@ import {
   RTCView,
   mediaDevices,
 } from 'react-native-webrtc';
+import { useNavigation } from '@react-navigation/native';
 
-export default function CallScreen({route,navigation, ...props}) {
-  const { userId } = route.params;
+function CallScreen({ userId }) {  
   
+  const navigation = useNavigation();
   let connectedUser;
   const [socketActive, setSocketActive] = useState(false);
   const [calling, setCalling] = useState(false);
@@ -39,8 +41,6 @@ export default function CallScreen({route,navigation, ...props}) {
       ],
     }),
   );
-
-  const [offer, setOffer] = useState(null);
   const [callToUsername, setCallToUsername] = useState(null);
   useEffect(() => {
     navigation.setOptions({
@@ -51,7 +51,7 @@ export default function CallScreen({route,navigation, ...props}) {
         </Button>
       ),
     });
-  }, [userId]);
+  }, []);
 
   /**
    * Calling Stuff
@@ -83,16 +83,6 @@ export default function CallScreen({route,navigation, ...props}) {
       socket.on('login', (id, remoteOfferDescription) => {
         console.log('Login');
       });
-      // socket.on('userexits', (id, message) => {
-      //   if (socket.connected) socket.close(); 
-      //   alert("The current user already exists");
-      //   try {
-      //     navigation.goBack();
-      //   } catch (error) {
-          
-      //   }
-        
-      // });
       socket.on('offer', (name, remoteOfferDescription) => {
         //alert("receive,offer");
         handleOffer(name,remoteOfferDescription);
@@ -165,17 +155,6 @@ export default function CallScreen({route,navigation, ...props}) {
       }
     };
   }, []);
-
-  const send = (message) => {
-    //attach the other peer username to our messages
-    if (connectedUser) {
-      message.name = connectedUser;
-      console.log('Connected iser in end----------', message);
-    }
-   // alert(message.type);
-    socket.emit(message.type, message);
-   // conn.send(JSON.stringify(message));
-  };
 
   const onCall = async () => {
     setCalling(true);
@@ -266,6 +245,13 @@ export default function CallScreen({route,navigation, ...props}) {
     </View>
   );
 }
+const mapStateToProps = ({
+  user:{userId}
+}) => ({
+  userId
+});
+
+export default connect(mapStateToProps)(CallScreen);
 
 const styles = StyleSheet.create({
   root: {

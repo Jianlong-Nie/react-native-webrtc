@@ -3,24 +3,23 @@ import {View, StyleSheet} from 'react-native';
 import {Text} from 'react-native-paper';
 import {TextInput} from 'react-native-paper';
 import {Button} from 'react-native-paper';
+import { connect } from 'react-redux';
 
-export default function LoginScreen(props) {
-  const [userId, setUserId] = useState('');
+function LoginScreen(props) {
+  const { dispatch,userId } = props;
   return (
     <View style={styles.root}>
       <View style={styles.content}>
         <Text style={styles.heading}>Enter your id</Text>
         <TextInput
           label="Your  ID"
-          onChangeText={text => setUserId(text)}
+          onChangeText={(text)=>dispatch({type:'user/changeUserId',payload:text})}
           mode="outlined"
           style={styles.input}
         />
-
         <Button
           mode="contained"
-          onPress={()=>{navigate('CallScreen',{ userId: userId});}}
-         
+          onPress={()=>dispatch({type:'user/login'})}
           style={styles.btn}
           contentStyle={styles.btnContent}
           disabled={userId.length === 0}>
@@ -30,7 +29,12 @@ export default function LoginScreen(props) {
     </View>
   );
 }
-
+const mapStateToProps = ({
+  user:{userId}
+}) => ({
+  userId
+});
+export default connect(mapStateToProps)(LoginScreen);
 const styles = StyleSheet.create({
   root: {
     backgroundColor: '#fff',
