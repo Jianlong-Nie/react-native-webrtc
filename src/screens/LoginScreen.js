@@ -19,7 +19,7 @@ export default function LoginScreen(props) {
 
         <Button
           mode="contained"
-          onPress={()=>{props.navigation.navigate('Call',{ userId: userId});}}
+          onPress={()=>{navigate('CallScreen',{ userId: userId});}}
          
           style={styles.btn}
           contentStyle={styles.btnContent}

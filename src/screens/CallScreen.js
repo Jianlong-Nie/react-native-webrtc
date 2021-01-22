@@ -46,7 +46,7 @@ export default function CallScreen({route,navigation, ...props}) {
     navigation.setOptions({
       title: 'Your ID - ' + userId,
       headerRight: () => (
-        <Button mode="text" onPress={()=>{ navigation.push('Login'); }} style={{paddingRight: 10}}>
+        <Button mode="text" onPress={()=>{ navigation.push('LoginScreen'); }} style={{paddingRight: 10}}>
           Logout
         </Button>
       ),

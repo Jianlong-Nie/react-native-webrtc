@@ -1,4 +1,4 @@
-import DeviceInfo from 'react-native-device-info';
+
 import * as RootNavigation from '../routers/RootNavigation';
 import {Dimensions, Platform, StatusBar} from 'react-native';
 const X_WIDTH = 375;
@@ -6,11 +6,11 @@ const X_HEIGHT = 812;
 const XSMAX_WIDTH = 414;
 const XSMAX_HEIGHT = 896;
 const {height, width} = Dimensions.get('window');
-import ImagePicker from 'react-native-image-picker';
+// import ImagePicker from 'react-native-image-picker';
 
 export function isCN() {
-  const local = DeviceInfo.getDeviceLocale();
-  return local.indexOf('CN') !== -1;
+ 
+  return false;
 }
 
 export function getDate(index) {
@@ -87,33 +87,3 @@ export function isPhoneAvailable(phone) {
     return true;
   }
 }
-
-export const selectPicture = (coptions) =>
-  new Promise((resolve) => {
-    const options = {
-      title: 'Select Image',
-      quality: 0.1,
-      maxWidth: 600,
-      maxHeight: 600,
-      durationLimit: 10,
-      storageOptions: {
-        skipBackup: true,
-        path: 'images',
-      },
-    };
-    ImagePicker.showImagePicker(coptions ? coptions : options, (response) => {
-      console.log('Response = ', response);
-      if (response.didCancel) {
-        failToast('User cancelled image picker');
-        console.log();
-      } else if (response.error) {
-        failToast('ImagePicker Error: ' + response.error);
-        console.log('ImagePicker Error: ', response.error);
-      } else if (response.customButton) {
-        console.log('User tapped custom button: ', response.customButton);
-      } else {
-        const source = response;
-        resolve(source);
-      }
-    });
-  });

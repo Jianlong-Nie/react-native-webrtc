@@ -6,12 +6,12 @@ const allScreens =  [
     {
       name: "CallScreen",
       component: CallScreen,
-      options:{headerShown:false}
+      options:{ headerShown: true}
     },
     {
       name: "LoginScreen",
       component: LoginScreen,
-      options:{headerShown:true}
+      options:{headerShown:false}
     }
   ];
 
