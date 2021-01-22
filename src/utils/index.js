@@ -1,6 +1,5 @@
 import DeviceInfo from 'react-native-device-info';
 import * as RootNavigation from '../routers/RootNavigation';
-import {Toast} from '@ant-design/react-native';
 import {Dimensions, Platform, StatusBar} from 'react-native';
 const X_WIDTH = 375;
 const X_HEIGHT = 812;

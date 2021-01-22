@@ -1,12 +1,12 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+// import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+// import Ionicons from 'react-native-vector-icons/Ionicons';
 import {navigationRef} from './RootNavigation';
 import allScreens from './screens';
 const StackNavigator = createStackNavigator();
-const TabNavigator = createBottomTabNavigator();
+// const TabNavigator = createBottomTabNavigator();
 
 export function getStackNavigator(initialRouteName) {
   return (

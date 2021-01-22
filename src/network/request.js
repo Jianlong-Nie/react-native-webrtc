@@ -1,5 +1,3 @@
-import { Toast } from '@ant-design/react-native';
-
 import Config from '../utils/config';
 
 const BASEURL = Config.baseUrl;
