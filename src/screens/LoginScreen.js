@@ -6,9 +6,6 @@ import {Button} from 'react-native-paper';
 
 export default function LoginScreen(props) {
   const [userId, setUserId] = useState('');
-
- 
-
   return (
     <View style={styles.root}>
       <View style={styles.content}>
