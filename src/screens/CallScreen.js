@@ -5,13 +5,7 @@ import { Button } from 'react-native-paper';
 import { TextInput } from 'react-native-paper';
 import InCallManager from 'react-native-incall-manager';
 import { connect } from 'react-redux';
-import {
-  RTCPeerConnection,
-  RTCIceCandidate,
-  RTCSessionDescription,
-  RTCView,
-  mediaDevices,
-} from 'react-native-webrtc';
+import { RTCView } from 'react-native-webrtc';
 import { useNavigation } from '@react-navigation/native';
 
 function CallScreen({
@@ -97,13 +91,6 @@ function CallScreen({
       if (socket.connected) socket.close(); // close the socket if the view is unmounted
     };
   }, []);
-  const onCall = async () => {
-    // create an offer
-    const localDescription = await yourConn.createOffer();
-    await yourConn.setLocalDescription(localDescription);
-    debugger;
-    socket.emit('join-room', userId, callToUsername, yourConn.localDescription);
-  };
 
   useEffect(() => {
     dispatch({ type: 'call/getMedia' });
@@ -136,14 +123,14 @@ function CallScreen({
       <View style={styles.videoContainer}>
         <View style={[styles.videos, styles.localVideos]}>
           <Text>Your Video</Text>
-          <RTCView streamURL={localStream.toURL()} style={styles.localVideo} />
+          {/* <RTCView streamURL={localStream.toURL()} style={styles.localVideo} /> */}
         </View>
         <View style={[styles.videos, styles.remoteVideos]}>
           <Text>Friends Video</Text>
-          <RTCView
+          {/* <RTCView
             streamURL={remoteStream.toURL()}
             style={styles.remoteVideo}
-          />
+          /> */}
         </View>
       </View>
     </View>

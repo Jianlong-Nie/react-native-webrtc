@@ -19,7 +19,7 @@ server.listen(port, () => console.log(`Server is running on port ${port}`));
 let broadcaster;
 let invitedUser;
 let users = [];
-let rooms = [];
+let rooms = [{roomId:myroom,friends:[]}];
 
 io.sockets.on("connection", (socket) => {
   //console.log("连接成功");
