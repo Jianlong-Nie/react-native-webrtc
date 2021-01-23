@@ -163,7 +163,7 @@ function CallScreen({
   };
 
   const exchange = async (data) => {
-    debugger
+    debugger;
     let fromId = data.from;
     if (data.sdp) {
       console.log('Exchange====================================');
@@ -176,21 +176,11 @@ function CallScreen({
     } else {
       peer = createPC(fromId, false);
     }
-
     if (data.sdp) {
-      //console.log('exchange sdp', data);
-      let sdp = new RTCSessionDescription(data.sdp);
-      let callback = () =>
-        peer.remoteDescription.type === 'offer'
-          ? peer.createAnswer(callback2, logError)
-          : null;
-      const answer =
-      let callback2 = (desc) =>
-        peer.setLocalDescription(desc, callback3, logError);
-      let callback3 = () =>
-        socket.emit('exchange', { to: fromId, sdp: peer.localDescription });
-
-      peer.setRemoteDescription(sdp, callback, logError);
+      await peer.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+      socket.emit('exchange', { to: fromId, sdp: peer.localDescription });
     } else {
       peer.addIceCandidate(new RTCIceCandidate(data.candidate));
     }
