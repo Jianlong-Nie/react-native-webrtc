@@ -23,7 +23,6 @@ function CallScreen({
   remoteStream,
   socket,
   remoteList,
-  yourConn,
 }) {
   const navigation = useNavigation();
   //change the config as you need
