@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Button } from 'react-native-paper';
 import { TextInput } from 'react-native-paper';
@@ -21,6 +21,7 @@ function CallScreen({
   localStream,
   socket,
   roomID,
+  roomList,
   remoteList,
 }) {
   const navigation = useNavigation();
@@ -56,7 +57,18 @@ function CallScreen({
   }, [socketActive]);
 
   useEffect(() => {
+    let timer = null;
     socket.on('connect', () => {
+      timer = setInterval(() => {
+        socket.emit('list-server', {}, (data) => {
+          console.log('====================================');
+          const entries = Object.entries(data);
+          debugger;
+          console.log('====================================');
+          dispatch({ type: 'call/changeRoomList', payload: entries });
+        });
+      }, 2000);
+
       dispatch({ type: 'call/setSocketActive', payload: true });
       socket.on('exchange', (data) => {
         exchange(data);
@@ -66,6 +78,10 @@ function CallScreen({
       });
     });
     return () => {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
       if (socket.connected) socket.close(); // close the socket if the view is unmounted
     };
   }, []);
@@ -80,8 +96,8 @@ function CallScreen({
         debugger;
         if (socketIds.hasOwnProperty(i)) {
           let socketId = socketIds[i];
-          if(typeof socketId ==='object'){
-            socketId=socketId.socketId;
+          if (typeof socketId === 'object') {
+            socketId = socketId.socketId;
           }
           console.log('====================================');
           console.log(socketId);
@@ -214,7 +230,7 @@ function CallScreen({
     <View style={styles.root}>
       <View style={styles.inputField}>
         <TextInput
-          label="Enter Friends Id"
+          label="Enter ROOM Id"
           mode="outlined"
           style={{ marginBottom: 7 }}
           onChangeText={(text) =>
@@ -232,23 +248,78 @@ function CallScreen({
           contentStyle={styles.btnContent}
           disabled={!(socketActive && userId.length > 0)}
         >
-          Call
+          CREATE A ROOM
         </Button>
       </View>
 
-      <View style={styles.videoContainer}>
-        <View style={[styles.videos, styles.localVideos]}>
-          <Text>Your Video</Text>
-          {/* <RTCView streamURL={localStream.toURL()} style={styles.localVideo} /> */}
-        </View>
-        <View style={[styles.videos, styles.remoteVideos]}>
-          <Text>Friends Video</Text>
-          {/* <RTCView
-            streamURL={remoteStream.toURL()}
-            style={styles.remoteVideo}
-          /> */}
-        </View>
-      </View>
+      <FlatList
+        data={roomList}
+        renderItem={({ item }) => {
+          if (!item[0]) {
+            return null;
+          }
+          console.log('====================================');
+          console.log(item[1]);
+          console.log('====================================');
+          return (
+            <View style={styles.renderitem}>
+              <View
+                style={{
+                  marginLeft: 15,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginTop:10
+                }}
+              >
+                <Text>roomID:</Text>
+                <Text style={styles.nutrition}>{item[0]}</Text>
+              </View>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    marginLeft: 15,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text>founder:</Text>
+                  <Text style={styles.nutrition}>{item[1]['name']}</Text>
+                </View>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    marginLeft: 15,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text>Current online:</Text>
+                  <Text style={styles.nutrition}>
+                    {item[1]['participant'].length}
+                  </Text>
+                </View>
+                <Button
+                  mode="contained"
+                  onPress={() => {
+                    // dispatch({ type: 'call/callSomeOne', payload: {} })
+                  }}
+                  loading={calling}
+                  style={{ marginRight: 10, marginBottom: 10 }}
+                  contentStyle={{ fontSize: 15 }}
+                  disabled={!(socketActive && userId.length > 0)}
+                >
+                  JOIN
+                </Button>
+              </View>
+            </View>
+          );
+        }}
+        keyExtractor={({ item }, index) => `list${index}`}
+      />
     </View>
   );
 }
@@ -262,6 +333,7 @@ const mapStateToProps = ({
     localStream,
     socket,
     yourConn,
+    roomList,
   },
 }) => ({
   userId,
@@ -272,11 +344,29 @@ const mapStateToProps = ({
   yourConn,
   remoteList,
   roomID,
+  roomList,
 });
 
 export default connect(mapStateToProps)(CallScreen);
 
 const styles = StyleSheet.create({
+  renderitem: {
+    backgroundColor: 'white',
+    width: '100%',
+    height: 70,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    marginTop: 15,
+    borderRadius: 16,
+    borderColor: 'lightgray',
+    borderWidth: 1,
+    
+  },
+  value: { fontSize: 20 },
+  nutrition: {
+    fontSize: 18,
+    color: '#3BC054',
+  },
   root: {
     backgroundColor: '#fff',
     flex: 1,

@@ -19,6 +19,7 @@ const initState = {
   callToUsername: '',
   roomID:'',
   remoteList: {},
+  roomList:[],
   yourConn: new RTCPeerConnection({
     iceServers: [
       {
@@ -47,6 +48,12 @@ export default {
       return {
         ...state,
         remoteList: payload,
+      };
+    },
+    changeRoomList(state, { payload }) {
+      return {
+        ...state,
+        roomList: payload,
       };
     },
     setSocketActive(state, { payload }) {
