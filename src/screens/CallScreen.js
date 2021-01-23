@@ -77,10 +77,14 @@ function CallScreen({
   const join = (roomData) => {
     let onJoin = (socketIds) => {
       for (const i in socketIds) {
+        debugger;
         if (socketIds.hasOwnProperty(i)) {
-          const socketId = socketIds[i];
+          let socketId = socketIds[i];
+          if(typeof socketId ==='object'){
+            socketId=socketId.socketId;
+          }
           console.log('====================================');
-          console.log('输出socketId' + socketId);
+          console.log(socketId);
           console.log('====================================');
           createPC(socketId, true);
         }
@@ -172,9 +176,9 @@ function CallScreen({
     //console.log('leave', socketId);
     const peer = pcPeers[socketId];
     peer.close();
-    delete pcPeers[socketId];
+    // delete pcPeers[socketId];
     const remoteList = remoteList;
-    delete remoteList[socketId];
+    // delete remoteList[socketId];
     // appClass.setState({
     //   info: 'One peer left!',
     //   remoteList: remoteList,

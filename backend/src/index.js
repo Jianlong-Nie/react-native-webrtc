@@ -100,7 +100,7 @@ io.sockets.on('connection', (socket) => {
       socketId: socket.id,
       displayName: displayName,
     });
-    let socketIds = socketIdsInRoom(roomID);
+    let socketIds = socketIdsInRoom(roomId);
     let friends = socketIds
       .map((socketId) => {
         let room = findParticipant(socketId);
