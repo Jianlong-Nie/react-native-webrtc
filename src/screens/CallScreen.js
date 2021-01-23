@@ -10,7 +10,6 @@ import {
   RTCIceCandidate,
   RTCSessionDescription,
   RTCView,
-  mediaDevices,
 } from 'react-native-webrtc';
 import { useNavigation } from '@react-navigation/native';
 let pcPeers = {};
@@ -20,7 +19,6 @@ function CallScreen({
   socketActive,
   calling,
   localStream,
-  remoteStream,
   socket,
   remoteList,
 }) {
@@ -74,7 +72,6 @@ function CallScreen({
   useEffect(() => {
     dispatch({ type: 'call/getMedia' });
   }, []);
-  console.log('remoteStream:' + remoteStream.toURL());
   console.log('localStream:' + localStream.toURL());
   const join = (roomID) => {
     let onJoin = (socketIds) => {
@@ -88,7 +85,6 @@ function CallScreen({
         }
       }
     };
-
     socket.emit('join', roomID, onJoin);
   };
   const createPC = (socketId, isOffer) => {
@@ -114,21 +110,17 @@ function CallScreen({
     };
 
     peer.addStream(localStream);
-    debugger;
     peer.onaddstream = (event) => {
-      debugger;
       remoteList[socketId] = event.stream.toURL();
       dispatch({ type: 'call/changeRemoteList', payload: remoteList });
     };
     peer.onicecandidate = (event) => {
-      debugger;
       //console.log('onicecandidate', event.candidate);
       if (event.candidate) {
         socket.emit('exchange', { to: socketId, candidate: event.candidate });
       }
     };
     peer.oniceconnectionstatechange = (event) => {
-      debugger;
       //console.log('oniceconnectionstatechange', event.target.iceConnectionState);
       if (event.target.iceConnectionState === 'completed') {
         //console.log('event.target.iceConnectionState === 'completed'');
@@ -137,22 +129,12 @@ function CallScreen({
         }, 1000);
       }
       if (event.target.iceConnectionState === 'connected') {
-        debugger;
         //console.log('event.target.iceConnectionState === 'connected'');
       }
     };
-
-    /**
-     * On Signaling State Change
-     */
     peer.onsignalingstatechange = (event) => {
-      debugger;
       //console.log('on signaling state change', event.target.signalingState);
     };
-
-    /**
-     * On Remove Stream
-     */
     peer.onremovestream = (event) => {
       debugger;
       //console.log('on remove stream', event.stream);
@@ -190,12 +172,12 @@ function CallScreen({
     const peer = pcPeers[socketId];
     peer.close();
     delete pcPeers[socketId];
-    const remoteList = appClass.state.remoteList;
+    const remoteList = remoteList;
     delete remoteList[socketId];
-    appClass.setState({
-      info: 'One peer left!',
-      remoteList: remoteList,
-    });
+    // appClass.setState({
+    //   info: 'One peer left!',
+    //   remoteList: remoteList,
+    // });
   };
 
   const mapHash = (hash, func) => {
@@ -267,21 +249,12 @@ function CallScreen({
 }
 const mapStateToProps = ({
   user: { userId },
-  call: {
-    remoteList,
-    socketActive,
-    calling,
-    localStream,
-    remoteStream,
-    socket,
-    yourConn,
-  },
+  call: { remoteList, socketActive, calling, localStream, socket, yourConn },
 }) => ({
   userId,
   socketActive,
   calling,
   localStream,
-  remoteStream,
   socket,
   yourConn,
   remoteList,

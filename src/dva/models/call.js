@@ -15,7 +15,6 @@ const initState = {
   socketActive: false,
   calling: false,
   localStream: { toURL: () => null },
-  remoteStream: { toURL: () => null },
   socket: Socket('ws://192.168.2.201:4000'),
   callToUsername: '',
   remoteList: {},
@@ -44,11 +43,11 @@ export default {
       };
     },
     changeRemoteList(state, { payload }) {
-        return {
-          ...state,
-          remoteList: payload,
-        };
-      },
+      return {
+        ...state,
+        remoteList: payload,
+      };
+    },
     setSocketActive(state, { payload }) {
       return {
         ...state,
@@ -108,7 +107,7 @@ export default {
           optional: videoSourceId ? [{ sourceId: videoSourceId }] : [],
         },
       });
-      yield put({ type: 'setLocalStream', payload: stream })
+      yield put({ type: 'setLocalStream', payload: stream });
     },
     *handleCandidate({ payload }, { call, put, select }) {
       yield put({
