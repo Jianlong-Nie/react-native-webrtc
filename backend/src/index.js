@@ -84,7 +84,7 @@ io.sockets.on('connection', (socket) => {
   console.log('连接成功：' + socket.id);
   console.log('====================================');
   socket.on('join', (joinData, callback) => {
-    let roomId = joinData.roomId;
+    let roomId = joinData.roomID;
     let displayName = joinData.displayName;
     socket.join(roomId);
     socket.room = roomId;

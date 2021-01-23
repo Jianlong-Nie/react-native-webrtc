@@ -20,6 +20,7 @@ function CallScreen({
   calling,
   localStream,
   socket,
+  roomID,
   remoteList,
 }) {
   const navigation = useNavigation();
@@ -73,7 +74,7 @@ function CallScreen({
     dispatch({ type: 'call/getMedia' });
   }, []);
   console.log('localStream:' + localStream.toURL());
-  const join = (roomID) => {
+  const join = (roomData) => {
     let onJoin = (socketIds) => {
       for (const i in socketIds) {
         if (socketIds.hasOwnProperty(i)) {
@@ -85,7 +86,7 @@ function CallScreen({
         }
       }
     };
-    socket.emit('join', roomID, onJoin);
+    socket.emit('join', roomData, onJoin);
   };
   const createPC = (socketId, isOffer) => {
     const configuration = {
@@ -213,13 +214,13 @@ function CallScreen({
           mode="outlined"
           style={{ marginBottom: 7 }}
           onChangeText={(text) =>
-            dispatch({ type: 'call/setCallToUsername', payload: text })
+            dispatch({ type: 'call/setRoomID', payload: text })
           }
         />
         <Button
           mode="contained"
           onPress={() => {
-            join('room');
+            join({ roomID, displayName: userId });
             // dispatch({ type: 'call/callSomeOne', payload: {} })
           }}
           loading={calling}
@@ -249,7 +250,15 @@ function CallScreen({
 }
 const mapStateToProps = ({
   user: { userId },
-  call: { remoteList, socketActive, calling, localStream, socket, yourConn },
+  call: {
+    roomID,
+    remoteList,
+    socketActive,
+    calling,
+    localStream,
+    socket,
+    yourConn,
+  },
 }) => ({
   userId,
   socketActive,
@@ -258,6 +267,7 @@ const mapStateToProps = ({
   socket,
   yourConn,
   remoteList,
+  roomID,
 });
 
 export default connect(mapStateToProps)(CallScreen);
