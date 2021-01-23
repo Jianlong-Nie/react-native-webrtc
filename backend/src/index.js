@@ -16,99 +16,233 @@ app.use(express.static(__dirname + "/public"));
 io.sockets.on("error", (e) => console.log(e));
 server.listen(port, () => console.log(`Server is running on port ${port}`));
 
-let broadcaster;
-let invitedUser;
-let users = [];
-let rooms = [];
+var roomList = {};
+/*
+roomId {
+    name:
+    image: null
+    particular: []
+    token:
+}
+ */
+var templateList = {};
+/*
+templateRoomId {
+	id:
+	config: {
+		background:
+	}
+}
+ */
 
-io.sockets.on("connection", (socket) => {
-  //console.log("连接成功");
-  socket.on("broadcaster", (userid) => {
-    console.log("connected："+userid);
-    broadcaster = socket.id;
-    const user = users.find((item)=> item.userid == userid);
-    console.log('====================================');
-    console.log("currentuser："+userid);
-    console.log('====================================');
-    if (user) {
-      // console.log("error："+"The current user already exists");
-      // socket.emit("userexits", "The current user already exists");
-      user.userid = userid;
-      user.socketId = socket.id;
-    } else{
-      users.push({
-        userid:userid,
-        socketId:socket.id
-      });
+
+//------------------------------------------------------------------------------
+//  Serving static files
+
+
+
+//------------------------------------------------------------------------------
+//  WebRTC Signaling
+function socketIdsInRoom(roomId) {
+    var socketIds = io.nsps['/'].adapter.rooms[roomId];
+    if (socketIds) {
+        var collection = [];
+        for (var key in socketIds) {
+            collection.push(key);
+        }
+        return collection;
+    } else {
+        return [];
     }
-    console.log('====================================');
-    console.log(users);
-    console.log('====================================');
-    //socket.emit("broadcaster");
-  });
-  socket.on("watcher", () => {
-    socket.to(broadcaster).emit("watcher", socket.id);
-  });
-  socket.on("login", () => {
-    socket.to(broadcaster).emit("login", socket.id);
-  });
-  socket.on("refuse", (userid) => {
-    const user = users.find((item)=> item.userid ==userid);
-    if (user) {
-      socket.to(user.socketId).emit("refuse", "refuse");
+}
+
+/*************************************************
+ * Find participant by socket id. Return index of array if input has roomId and resIndex = true
+ */
+function findParticipant(socketId) {
+    for (let roomId in roomList) {
+        for (let i = 0; i < roomList[roomId].participant.length; i++) {
+            if (roomList[roomId].participant[i].socketId == socketId) {
+                console.log('roomList[roomId].participant[i]: ', roomList[roomId].participant[i]);
+                return roomList[roomId].participant[i];
+            }
+        }
     }
-  });
-  socket.on("disconnect", (message) => {
-    console.log("disconnect"+message);
-    console.log('====================================');
-    console.log(users);
-    console.log('====================================');
-    users = users.filter((item)=>item.socketId!=socket.id);
-    socket.to(broadcaster).emit("disconnectPeer", socket.id);
-  });
-  socket.on("join-room", (sender,userid, message) => {
-    invitedUser = userid;
-    //sender邀请人
-    //userid 邀请的目标用户
-    console.log("join-room");
-    console.log('====================================');
-    console.log(users);
-    console.log('====================================');
-    const user = users.find((item)=> item.userid ==userid);
-    if (user) {
-      console.log("user in");
-      socket.to(user.socketId).emit("offer", sender, message);
-     }else{
-      console.log("user not in");
-      socket.emit("user-not-in", sender, message);
-     }
-  });
-  socket.on("answer", (userid, message) => {
-    console.log("anwser"+userid);
-    console.log('====================================');
-    console.log(users);
-    console.log('====================================');
-    const user = users.find((item)=> item.userid ==userid);
-    if (user) {
-      socket.to(user.socketId).emit("answer", socket.id, message);
+    return null;
+}
+
+/**
+ {
+     id:
+     name:
+     token: to detect owner
+ }
+ * @param room
+ * @param error
+ */
+function createNewRoom(room, error) {
+    if (roomList.hasOwnProperty(room.id)) {
+        if (error) error("Room already used.");
+    } else {
+
+        roomList[room.id] = {
+            name: room.name,
+            image: room.image,
+            token: room.token,
+            participant: []
+        };
+
+        console.log("New room: ", room);
+        io.emit("newroom-client", room);
     }
-    
-  });
-  socket.on("candidate", (message) => {
-    console.log("candidate"+invitedUser);
-    if (!invitedUser) {
-      return;
-    }
-    // console.log('====================================');
-    // console.log(users);
-    // console.log('====================================');
-      const user = users.find((item)=> item.userid ==invitedUser);
-     
-      socket.to(user.socketId).emit("candidate", message);
-     
-    
-  });
-  socket.on('comment', (id, message) => {
-    socket.to(id).emit("comment", socket.id, message);
-  });
+}
+
+io.on('connection', function (socket) {
+    console.log('Connection: ', socket.id);
+
+    socket.on("disconnect", function () {
+        console.log('Disconnect');
+
+        for (let roomId in roomList) {
+            for (let i = 0; i < roomList[roomId].participant.length; i++) {
+                if (roomList[roomId].participant[i].socketId == socket.id) {
+                    io.emit("leave-client", roomList[roomId].participant[i]);
+                    roomList[roomId].participant.splice(i, 1);
+                    break;
+                }
+            }
+            setTimeout(function () {
+                if (roomList.hasOwnProperty(roomId) && roomList[roomId].participant.length === 0) {
+                    io.emit("leaveall-client", roomId);
+                    delete roomList[roomId];
+                }
+            }, 30000);
+        }
+        if (socket.room) {
+            socket.leave(socket.room);
+        }
+    });
+
+
+    /**
+     * Callback: list of {socketId, displayName: name of user}
+     */
+    socket.on("join-server", function (joinData, callback) { //Join room
+        let roomId = joinData.roomId;
+        let displayName = joinData.displayName;
+        socket.join(roomId);
+        socket.room = roomId;
+        console.log("joinData: ", joinData);
+
+        createNewRoom({
+            id: roomId,
+            name: displayName,
+            image: null,
+            token: socket.id
+        });
+        roomList[roomId].participant.push({
+            socketId: socket.id,
+            displayName: displayName
+        });
+
+        var socketIds = socketIdsInRoom(roomId);
+        let friends = socketIds.map((socketId) => {
+
+            let room = findParticipant(socketId);
+            return {
+                socketId: socketId,
+                displayName: room === null ? null : room.displayName
+            }
+        }).filter((friend) => friend.socketId != socket.id);
+        callback(friends);
+        //broadcast
+        friends.forEach((friend) => {
+            io.sockets.connected[friend.socketId].emit("join-client", {
+                socketId: socket.id,
+                displayName: displayName
+            });
+        });
+        io.emit("notify-client", {
+            id: roomId,
+            name: roomList[roomId].name,
+            image: roomList[roomId].image,
+            participant: roomList[roomId].participant,
+            token: roomList[roomId].token
+        });
+    });
+
+    socket.on("exchange-server", function (data) {
+        console.log('exchange', data);
+        data.from = socket.id;
+        var to = io.sockets.connected[data.to];
+        to.emit("exchange-client", data);
+    });
+
+    socket.on("count-server", function (roomId, callback) {
+        var socketIds = socketIdsInRoom(roomId);
+        callback(socketIds.length);
+    });
+
+    socket.on("list-server", function (data, callback) {
+        callback(roomList);
+    });
+
+    socket.on("newroom-server", function (room, error) {
+        createNewRoom(room, error);
+    });
+
+    socket.on("template-server", function (request, error) {
+
+        /*************************************************
+         * request{
+         *  action: 'put' or 'get'
+         *  template: {
+         *      id
+         *      roomId
+         *      config: {
+         *          background:
+         *          }
+         *      }
+         * }
+         */
+
+        try {
+            let action = request.action;
+            let template = request.template;
+            if (action == 'put') {
+                templateList[template.roomId] = template;
+                io.emit("template-client", {
+                    roomId: template.roomId,
+                    template: template
+                });
+            } else if (action == 'get') {
+                if (templateList.hasOwnProperty(template.roomId)) {
+                    socket.emit("template-client", {
+                        roomId: template.roomId,
+                        template: templateList[template.roomId]
+                    });
+                } else {
+                    if (error) error("Template not found.");
+                }
+            }
+        } catch (e) {
+            if (error) error("Error: " + e);
+        }
+
+
+    });
+
+    socket.on("remove-server", function (room, callback) {
+        if (roomList.hasOwnProperty(room.id)) {
+            if (room.token && roomList[room.id].token == room.token) {
+                delete roomList[room.id];
+                callback(true, "Succeed");
+            } else {
+                callback(false, "Token is not found");
+            }
+        } else {
+            callback(false, "Room is not exist");
+        }
+
+    })
 });

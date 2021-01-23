@@ -1,8 +1,8 @@
-import React, {useEffect, useState} from 'react';
-import {View, StyleSheet} from 'react-native';
-import {Text} from 'react-native-paper';
-import {Button} from 'react-native-paper';
-import {TextInput} from 'react-native-paper';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Text } from 'react-native-paper';
+import { Button } from 'react-native-paper';
+import { TextInput } from 'react-native-paper';
 import Socket from 'socket.io-client';
 import InCallManager from 'react-native-incall-manager';
 import { connect } from 'react-redux';
@@ -16,37 +16,29 @@ import {
 } from 'react-native-webrtc';
 import { useNavigation } from '@react-navigation/native';
 
-function CallScreen({ userId }) {  
-  
+function CallScreen({ userId }) {
   const navigation = useNavigation();
   let connectedUser;
   const [socketActive, setSocketActive] = useState(false);
   const [calling, setCalling] = useState(false);
-  const [localStream, setLocalStream] = useState({toURL: () => null});
-  const [remoteStream, setRemoteStream] = useState({toURL: () => null});
+  const [localStream, setLocalStream] = useState({ toURL: () => null });
+  const [remoteStream, setRemoteStream] = useState({ toURL: () => null });
   const [socket] = useState(Socket('ws://192.168.2.201:4000'));
+  const [friends, setFriends] = useState([]);
+  const [me, setMe] = useState(null);
 
-  const [yourConn, setYourConn] = useState(
-    //change the config as you need
-  new RTCPeerConnection({
-      iceServers: [
-        {
-          urls: 'stun:stun.l.google.com:19302',  
-        }, {
-          urls: 'stun:stun1.l.google.com:19302',    
-        }, {
-          urls: 'stun:stun2.l.google.com:19302',    
-        }
-
-      ],
-    }),
-  );
   const [callToUsername, setCallToUsername] = useState(null);
   useEffect(() => {
     navigation.setOptions({
       title: 'Your ID - ' + userId,
       headerRight: () => (
-        <Button mode="text" onPress={()=>{ navigation.push('LoginScreen'); }} style={{paddingRight: 10}}>
+        <Button
+          mode="text"
+          onPress={() => {
+            navigation.push('LoginScreen');
+          }}
+          style={{ paddingRight: 10 }}
+        >
           Logout
         </Button>
       ),
@@ -58,9 +50,9 @@ function CallScreen({ userId }) {
    */
 
   useEffect(() => {
-    if (socketActive && userId.length > 0) {
+    if (socketActive) {
       try {
-        InCallManager.start({media: 'audio'});
+        InCallManager.start({ media: 'audio' });
         InCallManager.setForceSpeakerphoneOn(true);
         InCallManager.setSpeakerphoneOn(true);
       } catch (err) {
@@ -68,37 +60,215 @@ function CallScreen({ userId }) {
       }
       console.log(InCallManager);
       socket.emit('login', userId);
-
     }
-  }, [socketActive, userId]);
+  }, [socketActive]);
+  function join(roomId, displayName, callback) {
+    socket.emit('join-server', { roomId, displayName }, function (friendsList) {
+      friends = friendsList;
+      console.log('Joins', friends);
+      friends.forEach((friend) => {
+        createPeerConnection(friend, true);
+      });
+      if (callback !== null) {
+        me = {
+          socketId: socket.id,
+          displayName: displayName,
+        };
+        callback();
+      }
+    });
+  }
+  function createPeerConnection(friend, isOffer) {
+    let socketId = friend.socketId;
+    let retVal = new RTCPeerConnection(configuration);
 
+    peerConnections[socketId] = retVal;
+
+    retVal.onicecandidate = function (event) {
+      console.log('onicecandidate', event);
+      if (event.candidate) {
+        socket.emit('exchange-server', {
+          to: socketId,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    function createOffer() {
+      retVal.createOffer(function (desc) {
+        console.log('createOffer', desc);
+        retVal.setLocalDescription(
+          desc,
+          function () {
+            console.log('setLocalDescription', retVal.localDescription);
+            socket.emit('exchange-server', {
+              to: socketId,
+              sdp: retVal.localDescription,
+            });
+          },
+          logError
+        );
+      }, logError);
+    }
+
+    retVal.onnegotiationneeded = function () {
+      console.log('onnegotiationneeded');
+      if (isOffer) {
+        createOffer();
+      }
+    };
+
+    retVal.oniceconnectionstatechange = function (event) {
+      console.log('oniceconnectionstatechange', event);
+      if (event.target.iceConnectionState === 'connected' && isOffer) {
+        createDataChannel(isOffer, null);
+      }
+    };
+
+    retVal.onsignalingstatechange = function (event) {
+      console.log('onsignalingstatechange', event);
+    };
+
+    retVal.onaddstream = function (event) {
+      console.log('onaddstream', event);
+      if (window.onFriendCallback !== null) {
+        window.onFriendCallback(socketId, event.stream);
+      }
+    };
+
+    retVal.ondatachannel = function (event) {
+      console.log('ondatachannel', event);
+      createDataChannel(isOffer, event);
+    };
+
+    retVal.addStream(localStream);
+
+    function createDataChannel(isOffer, _event) {
+      if (retVal.textDataChannel) {
+        return;
+      }
+      var dataChannel = null;
+      if (isOffer) {
+        dataChannel = retVal.createDataChannel('text');
+      } else {
+        dataChannel = _event.channel;
+      }
+
+      dataChannel.onerror = function (error) {
+        console.log('dataChannel.onerror', error);
+      };
+
+      dataChannel.onmessage = function (event) {
+        console.log('dataChannel.onmessage:', event.data);
+        if (window.onDataChannelMessage !== null) {
+          window.onDataChannelMessage(JSON.parse(event.data));
+        }
+      };
+
+      dataChannel.onopen = function () {
+        console.log('dataChannel.onopen');
+      };
+
+      dataChannel.onclose = function () {
+        console.log('dataChannel.onclose');
+      };
+
+      retVal.textDataChannel = dataChannel;
+    }
+
+    return retVal;
+  }
+
+  function exchange(data) {
+    let fromId = data.from;
+    let pc;
+    if (fromId in peerConnections) {
+      pc = peerConnections[fromId];
+    } else {
+      let friend = friends.filter((friend) => friend.socketId == fromId)[0];
+      if (friend === null) {
+        friend = {
+          socketId: fromId,
+          displayName: '',
+        };
+      }
+      pc = createPeerConnection(friend, false);
+    }
+
+    if (data.sdp) {
+      console.log('exchange sdp', data);
+      pc.setRemoteDescription(
+        new RTCSessionDescription(data.sdp),
+        function () {
+          if (pc.remoteDescription.type == 'offer')
+            pc.createAnswer(function (desc) {
+              console.log('createAnswer', desc);
+              pc.setLocalDescription(
+                desc,
+                function () {
+                  console.log('setLocalDescription', pc.localDescription);
+                  socket.emit('exchange-server', {
+                    to: fromId,
+                    sdp: pc.localDescription,
+                  });
+                },
+                logError
+              );
+            }, logError);
+        },
+        logError
+      );
+    } else {
+      console.log('exchange candidate', data);
+      pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+    }
+  }
+  function getRoomList(callback) {
+    socket.emit('list-server', {}, (data) => {
+      console.log('Get list: ', data);
+      callback(data);
+    });
+  }
+
+  function countFriends(roomId, callback) {
+    socket.emit('count-server', roomId, (count) => {
+      console.log('Count friends result: ', count);
+      callback(count);
+    });
+  }
+  function leave(socketId) {
+    console.log('leave', socketId);
+    if (peerConnections.hasOwnProperty(socketId)) {
+      let pc = peerConnections[socketId];
+      pc.close();
+      delete peerConnections[socketId];
+
+      if (window.onFriendLeft) {
+        window.onFriendLeft(socketId);
+      }
+    }
+  }
   useEffect(() => {
-    socket.on('connect', () => {
+    socket.on('connect', (data) => {
       setSocketActive(true);
-      if (localStream) socket.emit('broadcaster',userId);
-      socket.on('candidate', (candidate) => {
-        handleCandidate(candidate);
-        console.log('Candidate');
+      // getRoomList((data) => {});
+      socket.on('exchange-client', function (data) {
+        exchange(data);
       });
-      socket.on('login', (id, remoteOfferDescription) => {
-        console.log('Login');
+
+      socket.on('leave-client', function (participant) {
+        leave(participant.socketId);
       });
-      socket.on('offer', (name, remoteOfferDescription) => {
-        //alert("receive,offer");
-        handleOffer(name,remoteOfferDescription);
+
+      socket.on('join-client', function (friend) {
+        //new friend:
+        friends.push(friend);
+        console.log('New friend joint conversation: ', friend);
       });
-      socket.on('answer', (id, remoteOfferDescription) => {
-        handleAnswer(remoteOfferDescription);
-        console.log('Answer');
-      });
-      socket.on('user-not-in', id => {
-        alert("The user you invited is not logged in");
-      });
-      socket.on('disconnectPeer', id => {
-        // peerConnections.current.get(id).close();
-        // peerConnections.current.delete(id);
-        handleLeave();
-        console.log('Leave');
+
+      socket.on('newroom-client', function (room) {
+        console.log('New room: ', room);
+        //@nhancv TODO: do with new room
       });
     });
     return () => {
@@ -108,7 +278,7 @@ function CallScreen({ userId }) {
 
   useEffect(() => {
     let isFront = false;
-    mediaDevices.enumerateDevices().then(sourceInfos => {
+    mediaDevices.enumerateDevices().then((sourceInfos) => {
       let videoSourceId;
       for (let i = 0; i < sourceInfos.length; i++) {
         const sourceInfo = sourceInfos[i];
@@ -129,41 +299,26 @@ function CallScreen({ userId }) {
               minFrameRate: 30,
             },
             facingMode: isFront ? 'user' : 'environment',
-            optional: videoSourceId ? [{sourceId: videoSourceId}] : [],
+            optional: videoSourceId ? [{ sourceId: videoSourceId }] : [],
           },
         })
-        .then(stream => {
+        .then((stream) => {
           // Got stream!
           setLocalStream(stream);
           // setup stream listening
-          yourConn.addStream(stream);
+          // yourConn.addStream(stream);
         })
-        .catch(error => {
+        .catch((error) => {
           // Log error
         });
     });
-
-    yourConn.onaddstream = event => {
-      console.log('On Add Stream', event);
-      setRemoteStream(event.stream);
-    };
-
-    // // Setup ice handling
-    yourConn.onicecandidate = event => {
-      if (event.candidate) {
-        socket.emit('candidate', event.candidate);
-      }
-    };
   }, []);
 
   const onCall = async () => {
     setCalling(true);
-    connectedUser = callToUsername;
-    // create an offer
-    const localDescription = await yourConn.createOffer();
-    await yourConn.setLocalDescription(localDescription);
-    debugger
-    socket.emit('join-room',userId, callToUsername, yourConn.localDescription);
+    join('myroom', 'myroomname', (data) => {
+      debugger;
+    });
   };
 
   //when somebody sends us an offer
@@ -173,17 +328,16 @@ function CallScreen({ userId }) {
     try {
       await yourConn.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await yourConn.createAnswer();
-     // alert("give you answer");
+      // alert("give you answer");
       await yourConn.setLocalDescription(answer);
       socket.emit('answer', connectedUser, answer);
-      
     } catch (err) {
       console.log('Offerr Error', err);
     }
   };
 
   //when we got an answer from a remote user
-  const handleAnswer = answer => {
+  const handleAnswer = (answer) => {
     //alert("tell you:received");
     setCalling(false);
     yourConn.setRemoteDescription(new RTCSessionDescription(answer));
@@ -194,12 +348,11 @@ function CallScreen({ userId }) {
     setCalling(false);
     console.log('Candidate ----------------->', candidate);
     yourConn.addIceCandidate(new RTCIceCandidate(candidate));
-    
   };
-  
+
   const handleLeave = () => {
     connectedUser = null;
-    setRemoteStream({toURL: () => null});
+    setRemoteStream({ toURL: () => null });
     yourConn.close();
     yourConn.onicecandidate = null;
     yourConn.onaddstream = null;
@@ -207,16 +360,16 @@ function CallScreen({ userId }) {
   /**
    * Calling Stuff Ends
    */
-  console.log("remoteStream:"+remoteStream.toURL());
-  console.log("localStream:"+localStream.toURL());
+  console.log('remoteStream:' + remoteStream.toURL());
+  console.log('localStream:' + localStream.toURL());
   return (
     <View style={styles.root}>
       <View style={styles.inputField}>
         <TextInput
           label="Enter Friends Id"
           mode="outlined"
-          style={{marginBottom: 7}}
-          onChangeText={text => setCallToUsername(text)}
+          style={{ marginBottom: 7 }}
+          onChangeText={(text) => setCallToUsername(text)}
         />
         <Button
           mode="contained"
@@ -224,7 +377,8 @@ function CallScreen({ userId }) {
           loading={calling}
           //   style={styles.btn}
           contentStyle={styles.btnContent}
-          disabled={!(socketActive && userId.length > 0)}>
+          disabled={!(socketActive && userId.length > 0)}
+        >
           Call
         </Button>
       </View>
@@ -245,10 +399,8 @@ function CallScreen({ userId }) {
     </View>
   );
 }
-const mapStateToProps = ({
-  user:{userId}
-}) => ({
-  userId
+const mapStateToProps = ({ user: { userId } }) => ({
+  userId,
 });
 
 export default connect(mapStateToProps)(CallScreen);
