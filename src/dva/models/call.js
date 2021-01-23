@@ -18,6 +18,7 @@ const initState = {
   remoteStream: { toURL: () => null },
   socket: Socket('ws://192.168.2.201:4000'),
   callToUsername: '',
+  remoteList: {},
   yourConn: new RTCPeerConnection({
     iceServers: [
       {
@@ -42,6 +43,12 @@ export default {
         userId: payload,
       };
     },
+    changeRemoteList(state, { payload }) {
+        return {
+          ...state,
+          remoteList: payload,
+        };
+      },
     setSocketActive(state, { payload }) {
       return {
         ...state,
@@ -101,20 +108,7 @@ export default {
           optional: videoSourceId ? [{ sourceId: videoSourceId }] : [],
         },
       });
-      yield put({ type: 'setLocalStream', payload: stream });
-      yourConn.addStream(stream);
-      yourConn.onaddstream = (event) => {
-        console.log('On Add Stream', event);
-        dvaStore.dispatch({
-          type: 'call/setRemoteStream',
-          payload: event.stream,
-        });
-      };
-      yourConn.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit('candidate', event.candidate);
-        }
-      };
+      yield put({ type: 'setLocalStream', payload: stream })
     },
     *handleCandidate({ payload }, { call, put, select }) {
       yield put({

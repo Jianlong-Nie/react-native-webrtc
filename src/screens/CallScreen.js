@@ -5,9 +5,15 @@ import { Button } from 'react-native-paper';
 import { TextInput } from 'react-native-paper';
 import InCallManager from 'react-native-incall-manager';
 import { connect } from 'react-redux';
-import { RTCView } from 'react-native-webrtc';
+import {
+  RTCPeerConnection,
+  RTCIceCandidate,
+  RTCSessionDescription,
+  RTCView,
+  mediaDevices,
+} from 'react-native-webrtc';
 import { useNavigation } from '@react-navigation/native';
-
+let pcPeers = {};
 function CallScreen({
   dispatch,
   userId,
@@ -16,6 +22,7 @@ function CallScreen({
   localStream,
   remoteStream,
   socket,
+  remoteList,
   yourConn,
 }) {
   const navigation = useNavigation();
@@ -53,38 +60,11 @@ function CallScreen({
   useEffect(() => {
     socket.on('connect', () => {
       dispatch({ type: 'call/setSocketActive', payload: true });
-      if (localStream) socket.emit('broadcaster', userId);
-      socket.on('candidate', (candidate) => {
-        debugger;
-        dispatch({ type: 'call/handleCandidate', payload: candidate });
-        console.log('Candidate');
+      socket.on('exchange', (data) => {
+        exchange(data);
       });
-      socket.on('login', (id, remoteOfferDescription) => {
-        console.log('Login');
-      });
-      socket.on('offer', (name, remoteOfferDescription) => {
-        //alert("receive,offer");
-        dispatch({
-          type: 'call/handleOffer',
-          payload: { name, remoteOfferDescription },
-        });
-      });
-      socket.on('answer', (id, remoteOfferDescription) => {
-        dispatch({
-          type: 'call/handleAnswer',
-          payload: remoteOfferDescription,
-        });
-        console.log('Answer');
-      });
-      socket.on('user-not-in', (id) => {
-        alert('The user you invited is not logged in');
-      });
-      socket.on('disconnectPeer', (id) => {
-        dispatch({
-          type: 'call/handleLeave',
-          payload: {},
-        });
-        console.log('Leave');
+      socket.on('leave', (socketId) => {
+        leave(socketId);
       });
     });
     return () => {
@@ -97,6 +77,163 @@ function CallScreen({
   }, []);
   console.log('remoteStream:' + remoteStream.toURL());
   console.log('localStream:' + localStream.toURL());
+  const join = (roomID) => {
+    let onJoin = (socketIds) => {
+      for (const i in socketIds) {
+        if (socketIds.hasOwnProperty(i)) {
+          const socketId = socketIds[i];
+          console.log('====================================');
+          console.log('输出socketId' + socketId);
+          console.log('====================================');
+          createPC(socketId, true);
+        }
+      }
+    };
+
+    socket.emit('join', roomID, onJoin);
+  };
+  const createPC = (socketId, isOffer) => {
+    const configuration = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    };
+    const peer = new RTCPeerConnection(configuration);
+    console.log('Peer====================================');
+    console.log(peer);
+    console.log('====================================');
+    pcPeers = {
+      ...pcPeers,
+      [socketId]: peer,
+    };
+    peer.onnegotiationneeded = async () => {
+      debugger;
+      //console.log('onnegotiationneeded');
+      if (isOffer) {
+        const localDescription = await peer.createOffer();
+        await peer.setLocalDescription(localDescription);
+        socket.emit('exchange', { to: socketId, sdp: peer.localDescription });
+      }
+    };
+
+    peer.addStream(localStream);
+    debugger;
+    peer.onaddstream = (event) => {
+      debugger;
+      remoteList[socketId] = event.stream.toURL();
+      dispatch({ type: 'call/changeRemoteList', payload: remoteList });
+    };
+    peer.onicecandidate = (event) => {
+      debugger;
+      //console.log('onicecandidate', event.candidate);
+      if (event.candidate) {
+        socket.emit('exchange', { to: socketId, candidate: event.candidate });
+      }
+    };
+    peer.oniceconnectionstatechange = (event) => {
+      debugger;
+      //console.log('oniceconnectionstatechange', event.target.iceConnectionState);
+      if (event.target.iceConnectionState === 'completed') {
+        //console.log('event.target.iceConnectionState === 'completed'');
+        setTimeout(() => {
+          getStats();
+        }, 1000);
+      }
+      if (event.target.iceConnectionState === 'connected') {
+        debugger;
+        //console.log('event.target.iceConnectionState === 'connected'');
+      }
+    };
+
+    /**
+     * On Signaling State Change
+     */
+    peer.onsignalingstatechange = (event) => {
+      debugger;
+      //console.log('on signaling state change', event.target.signalingState);
+    };
+
+    /**
+     * On Remove Stream
+     */
+    peer.onremovestream = (event) => {
+      debugger;
+      //console.log('on remove stream', event.stream);
+    };
+
+    return peer;
+  };
+
+  const exchange = async (data) => {
+    debugger
+    let fromId = data.from;
+    if (data.sdp) {
+      console.log('Exchange====================================');
+      console.log(data);
+      console.log('====================================');
+    }
+    let peer;
+    if (fromId in pcPeers) {
+      peer = pcPeers[fromId];
+    } else {
+      peer = createPC(fromId, false);
+    }
+
+    if (data.sdp) {
+      //console.log('exchange sdp', data);
+      let sdp = new RTCSessionDescription(data.sdp);
+      let callback = () =>
+        peer.remoteDescription.type === 'offer'
+          ? peer.createAnswer(callback2, logError)
+          : null;
+      const answer =
+      let callback2 = (desc) =>
+        peer.setLocalDescription(desc, callback3, logError);
+      let callback3 = () =>
+        socket.emit('exchange', { to: fromId, sdp: peer.localDescription });
+
+      peer.setRemoteDescription(sdp, callback, logError);
+    } else {
+      peer.addIceCandidate(new RTCIceCandidate(data.candidate));
+    }
+  };
+
+  const leave = (socketId) => {
+    //console.log('leave', socketId);
+    const peer = pcPeers[socketId];
+    peer.close();
+    delete pcPeers[socketId];
+    const remoteList = appClass.state.remoteList;
+    delete remoteList[socketId];
+    appClass.setState({
+      info: 'One peer left!',
+      remoteList: remoteList,
+    });
+  };
+
+  const mapHash = (hash, func) => {
+    //console.log(hash);
+    const array = [];
+    for (const key in hash) {
+      if (hash.hasOwnProperty(key)) {
+        const obj = hash[key];
+        array.push(func(obj, key));
+      }
+    }
+    return array;
+  };
+
+  const getStats = () => {
+    const pc = pcPeers[Object.keys(pcPeers)[0]];
+    if (
+      pc.getRemoteStreams()[0] &&
+      pc.getRemoteStreams()[0].getAudioTracks()[0]
+    ) {
+      const track = pc.getRemoteStreams()[0].getAudioTracks()[0];
+      let callback = (report) => console.log('getStats report', report);
+      //console.log('track', track);
+      pc.getStats(track, callback, logError);
+    }
+  };
+
   return (
     <View style={styles.root}>
       <View style={styles.inputField}>
@@ -110,7 +247,10 @@ function CallScreen({
         />
         <Button
           mode="contained"
-          onPress={() => dispatch({ type: 'call/callSomeOne', payload: {} })}
+          onPress={() => {
+            join('room');
+            // dispatch({ type: 'call/callSomeOne', payload: {} })
+          }}
           loading={calling}
           //   style={styles.btn}
           contentStyle={styles.btnContent}
@@ -138,7 +278,15 @@ function CallScreen({
 }
 const mapStateToProps = ({
   user: { userId },
-  call: { socketActive, calling, localStream, remoteStream, socket, yourConn },
+  call: {
+    remoteList,
+    socketActive,
+    calling,
+    localStream,
+    remoteStream,
+    socket,
+    yourConn,
+  },
 }) => ({
   userId,
   socketActive,
@@ -147,6 +295,7 @@ const mapStateToProps = ({
   remoteStream,
   socket,
   yourConn,
+  remoteList,
 });
 
 export default connect(mapStateToProps)(CallScreen);
