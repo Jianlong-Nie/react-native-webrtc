@@ -14,6 +14,7 @@ import {
 const initState = {
   socketActive: false,
   calling: false,
+  showSheet: false,
   localStream: { toURL: () => null },
   socket: Socket('ws://192.168.2.201:4000'),
   callToUsername: '',
@@ -60,6 +61,12 @@ export default {
       return {
         ...state,
         socketActive: payload,
+      };
+    },
+    setShowSheet(state, { payload }) {
+      return {
+        ...state,
+        showSheet: payload,
       };
     },
     setRoomID(state, { payload }) {

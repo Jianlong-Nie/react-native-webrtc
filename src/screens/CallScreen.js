@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  Animated,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Dimensions,
+  Image,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { Button } from 'react-native-paper';
 import { TextInput } from 'react-native-paper';
@@ -14,6 +23,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 let pcPeers = {};
 let myStream = {};
+let fall = new Animated.Value(0);
 function CallScreen({
   dispatch,
   userId,
@@ -24,8 +34,18 @@ function CallScreen({
   roomID,
   roomList,
   remoteList,
+  showSheet,
 }) {
   const navigation = useNavigation();
+  const { width, height } = Dimensions.get('window');
+  const [friends, setFriends] = useState([]);
+  const [muted, setMuted] = useState(false);
+  function setAudioMuted(mymuted) {
+    myStream.getTracks().forEach((t) => {
+      if (t.kind === 'audio') t.enabled = mymuted;
+    });
+    setMuted(mymuted);
+  }
   //change the config as you need
   useEffect(() => {
     navigation.setOptions({
@@ -56,6 +76,18 @@ function CallScreen({
       socket.emit('login', userId);
     }
   }, [socket.connected]);
+  useEffect(() => {
+    if (roomList.length && roomID) {
+      const currentRoom = roomList.find((item) => item[0] == roomID);
+      console.log('currentRoom====================================');
+      console.log(currentRoom);
+      console.log('====================================');
+      // return currentRoom[1].participant;
+      if (currentRoom) {
+        setFriends(currentRoom[1].participant);
+      }
+    }
+  }, [roomList, roomID]);
 
   useEffect(() => {
     let timer = null;
@@ -70,7 +102,6 @@ function CallScreen({
         });
       }, 2000);
 
-      
       socket.on('exchange', (data) => {
         exchange(data);
       });
@@ -119,6 +150,7 @@ function CallScreen({
         }
       }
     };
+    dispatch({ type: 'call/setShowSheet', payload: true });
     socket.emit('join', roomData, onJoin);
   };
   const createPC = (socketId, isOffer) => {
@@ -143,6 +175,11 @@ function CallScreen({
         const localDescription = await peer.createOffer();
         await peer.setLocalDescription(localDescription);
         socket.emit('exchange', { to: socketId, sdp: peer.localDescription });
+        //setAudioMuted(false);
+        // myStream.getTracks().forEach((t) => {
+        //   if (t.kind === 'audio') t.enabled = false;
+        //   setMuted(false);
+        // });
       }
     };
 
@@ -243,103 +280,238 @@ function CallScreen({
       pc.getStats(track, callback);
     }
   };
-
   return (
     <View style={styles.root}>
-      <View style={styles.inputField}>
-        <TextInput
-          label="Enter ROOM Id"
-          mode="outlined"
-          style={{ marginBottom: 7 }}
-          onChangeText={(text) =>
-            dispatch({ type: 'call/setRoomID', payload: text })
-          }
-        />
-        <Button
-          mode="contained"
-          onPress={() => {
-            join({ roomID, displayName: userId });
-            // dispatch({ type: 'call/callSomeOne', payload: {} })
-          }}
-          loading={calling}
-          //   style={styles.btn}
-          contentStyle={styles.btnContent}
-          disabled={!(socket.connected && userId.length > 0)}
-        >
-          CREATE A ROOM
-        </Button>
-      </View>
+      {!showSheet && (
+        <View style={styles.inputField}>
+          <TextInput
+            label="Enter ROOM Id"
+            mode="outlined"
+            style={{ marginBottom: 7 }}
+            onChangeText={(text) =>
+              dispatch({ type: 'call/setRoomID', payload: text })
+            }
+          />
+          <Button
+            mode="contained"
+            onPress={() => {
+              join({ roomID, displayName: userId });
+              // dispatch({ type: 'call/callSomeOne', payload: {} })
+            }}
+            loading={calling}
+            contentStyle={styles.btnContent}
+            disabled={!(socket.connected && userId.length > 0)}
+          >
+            CREATE A ROOM
+          </Button>
+        </View>
+      )}
 
-      <FlatList
-        data={roomList}
-        renderItem={({ item }) => {
-          if (!item[0]) {
-            return null;
-          }
-          console.log('====================================');
-          console.log(item[1]);
-          console.log('====================================');
-          return (
-            <View style={styles.renderitem}>
-              <View
-                style={{
-                  marginLeft: 15,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginTop: 10,
-                }}
-              >
-                <Text>roomID:</Text>
-                <Text style={styles.nutrition}>{item[0]}</Text>
-              </View>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                }}
-              >
+      {!showSheet && (
+        <FlatList
+          data={roomList}
+          renderItem={({ item }) => {
+            if (!item[0]) {
+              return null;
+            }
+            console.log('room ====================================');
+            console.log(item[1]);
+            console.log('====================================');
+            return (
+              <View style={styles.renderitem}>
                 <View
                   style={{
-                    flexDirection: 'row',
                     marginLeft: 15,
+                    flexDirection: 'row',
                     alignItems: 'center',
+                    marginTop: 10,
                   }}
                 >
-                  <Text>founder:</Text>
-                  <Text style={styles.nutrition}>{item[1]['name']}</Text>
+                  <Text>roomID:</Text>
+                  <Text style={styles.nutrition}>{item[0]}</Text>
                 </View>
                 <View
                   style={{
                     flexDirection: 'row',
-                    marginLeft: 15,
-                    alignItems: 'center',
+                    justifyContent: 'space-between',
                   }}
                 >
-                  <Text>Current online:</Text>
-                  <Text style={styles.nutrition}>
-                    {item[1]['participant'].length}
-                  </Text>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      marginLeft: 15,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text>founder:</Text>
+                    <Text style={styles.nutrition}>{item[1]['name']}</Text>
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      marginLeft: 15,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text>Current online:</Text>
+                    <Text style={styles.nutrition}>
+                      {item[1]['participant'].length}
+                    </Text>
+                  </View>
+                  <Button
+                    mode="contained"
+                    onPress={() => {
+                      dispatch({ type: 'call/setRoomID', payload: item[0] });
+                      join({ roomID: item[0], displayName: userId });
+                      // dispatch({ type: 'call/callSomeOne', payload: {} })
+                    }}
+                    loading={calling}
+                    style={{ marginRight: 10, marginBottom: 10 }}
+                    contentStyle={{ fontSize: 15 }}
+                    disabled={!(socket.connected && userId.length > 0)}
+                  >
+                    JOIN
+                  </Button>
                 </View>
-                <Button
-                  mode="contained"
-                  onPress={() => {
-                    debugger;
-                    join({ roomID: item[0], displayName: userId });
-                    // dispatch({ type: 'call/callSomeOne', payload: {} })
-                  }}
-                  loading={calling}
-                  style={{ marginRight: 10, marginBottom: 10 }}
-                  contentStyle={{ fontSize: 15 }}
-                  disabled={!(socket.connected && userId.length > 0)}
-                >
-                  JOIN
-                </Button>
               </View>
-            </View>
-          );
-        }}
-        keyExtractor={({ item }, index) => `list${index}`}
-      />
+            );
+          }}
+          keyExtractor={({ item }, index) => `list${index}`}
+        />
+      )}
+      {showSheet && (
+        <Animated.View
+          style={{
+            width: width,
+            height: height,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+
+            backgroundColor: 'black',
+            opacity: Animated.add(1, Animated.multiply(-1.0, fall)),
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              debugger;
+              dispatch({ type: 'call/setShowSheet', payload: false });
+            }}
+            style={{
+              width: 50,
+              height: 50,
+              position: 'absolute',
+              right: 10,
+            }}
+          >
+            <Image
+              style={{
+                width: 50,
+                height: 50,
+              }}
+              source={require('../images/Close.png')}
+            ></Image>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              debugger;
+              dispatch({ type: 'call/setShowSheet', payload: false });
+            }}
+            style={{
+              width: 50,
+              height: 50,
+              position: 'absolute',
+              right: 10,
+            }}
+          >
+            <Image
+              style={{
+                width: 50,
+                height: 50,
+              }}
+              source={require('../images/Close.png')}
+            ></Image>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              debugger;
+              setAudioMuted(true);
+            }}
+            style={{
+              width: 50,
+              height: 50,
+              position: 'absolute',
+              right: 10,
+              top: 100,
+            }}
+          >
+            <Image
+              style={{
+                width: 50,
+                height: 50,
+                resizeMode: 'contain',
+              }}
+              source={require('../images/jingyin.png')}
+            ></Image>
+          </TouchableOpacity>
+
+          <View style={{ marginTop: 40, marginLeft: 15 }}>
+            <Text style={{ color: 'white', fontSize: 20 }}>
+              {`You are in a chat room called: `}
+            </Text>
+            <Text style={{ color: 'red', fontSize: 20 }}>{roomID}</Text>
+            <Text style={{ color: 'white', fontSize: 20 }}>{`onlines: `}</Text>
+            <FlatList
+              data={friends}
+              renderItem={({ item }) => {
+                return (
+                  <View style={{ paddingHorizontal: 15 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        borderBottomWidth: 0.2,
+                        borderBottomColor: 'gray',
+                      }}
+                    >
+                      <Image
+                        style={{
+                          width: 44,
+                          height: 44,
+                          resizeMode: 'contain',
+                          margin: 5,
+                        }}
+                        source={{
+                          uri: 'https://measure.3vyd.com/uPic/uuuuuuuno.png',
+                        }}
+                      ></Image>
+                      <View
+                        style={{
+                          marginTop: 15,
+                          marginLeft: 15,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.balanceTxt,
+                            { color: 'white', fontSize: 14 },
+                          ]}
+                        >
+                          {item.displayName}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              }}
+              keyExtractor={({ item }, index) => `list${index}`}
+            />
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -354,6 +526,7 @@ const mapStateToProps = ({
     socket,
     yourConn,
     roomList,
+    showSheet,
   },
 }) => ({
   userId,
@@ -365,6 +538,7 @@ const mapStateToProps = ({
   remoteList,
   roomID,
   roomList,
+  showSheet,
 });
 
 export default connect(mapStateToProps)(CallScreen);
