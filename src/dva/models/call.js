@@ -17,9 +17,9 @@ const initState = {
   localStream: { toURL: () => null },
   socket: Socket('ws://192.168.2.201:4000'),
   callToUsername: '',
-  roomID:'',
+  roomID: '',
   remoteList: {},
-  roomList:[],
+  roomList: [],
   yourConn: new RTCPeerConnection({
     iceServers: [
       {
@@ -115,6 +115,7 @@ export default {
           optional: videoSourceId ? [{ sourceId: videoSourceId }] : [],
         },
       });
+      debugger;
       yield put({ type: 'setLocalStream', payload: stream });
     },
     *handleCandidate({ payload }, { call, put, select }) {

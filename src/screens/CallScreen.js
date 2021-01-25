@@ -13,6 +13,7 @@ import {
 } from 'react-native-webrtc';
 import { useNavigation } from '@react-navigation/native';
 let pcPeers = {};
+let myStream = {};
 function CallScreen({
   dispatch,
   userId,
@@ -59,22 +60,30 @@ function CallScreen({
   useEffect(() => {
     let timer = null;
     socket.on('connect', () => {
+      dispatch({ type: 'call/setSocketActive', payload: true });
       timer = setInterval(() => {
         socket.emit('list-server', {}, (data) => {
           console.log('====================================');
           const entries = Object.entries(data);
-          debugger;
           console.log('====================================');
           dispatch({ type: 'call/changeRoomList', payload: entries });
         });
       }, 2000);
 
-      dispatch({ type: 'call/setSocketActive', payload: true });
+      
       socket.on('exchange', (data) => {
         exchange(data);
       });
       socket.on('leave', (socketId) => {
         leave(socketId);
+      });
+      socket.on('disconnect', (socketId) => {
+        dispatch({ type: 'call/setSocketActive', payload: false });
+        dispatch({ type: 'call/changeRoomList', payload: [] });
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
       });
     });
     return () => {
@@ -89,7 +98,11 @@ function CallScreen({
   useEffect(() => {
     dispatch({ type: 'call/getMedia' });
   }, []);
-  console.log('localStream:' + localStream.toURL());
+  myStream = localStream;
+  console.log('====================================');
+  console.log();
+  console.log('localStream====================================');
+  console.log(localStream);
   const join = (roomData) => {
     let onJoin = (socketIds) => {
       for (const i in socketIds) {
@@ -112,6 +125,9 @@ function CallScreen({
     const configuration = {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     };
+    console.log('localStream===============================');
+    console.log(localStream);
+    console.log('====================================');
     const peer = new RTCPeerConnection(configuration);
     console.log('Peer====================================');
     console.log(peer);
@@ -130,7 +146,7 @@ function CallScreen({
       }
     };
 
-    peer.addStream(localStream);
+    peer.addStream(myStream);
     peer.onaddstream = (event) => {
       remoteList[socketId] = event.stream.toURL();
       dispatch({ type: 'call/changeRemoteList', payload: remoteList });
@@ -173,6 +189,7 @@ function CallScreen({
       console.log('====================================');
     }
     let peer;
+    debugger;
     if (fromId in pcPeers) {
       peer = pcPeers[fromId];
     } else {
@@ -192,6 +209,7 @@ function CallScreen({
     //console.log('leave', socketId);
     const peer = pcPeers[socketId];
     peer.close();
+
     // delete pcPeers[socketId];
     const remoteList = remoteList;
     // delete remoteList[socketId];
@@ -222,7 +240,7 @@ function CallScreen({
       const track = pc.getRemoteStreams()[0].getAudioTracks()[0];
       let callback = (report) => console.log('getStats report', report);
       //console.log('track', track);
-      pc.getStats(track, callback, logError);
+      pc.getStats(track, callbackdff);
     }
   };
 
@@ -268,7 +286,7 @@ function CallScreen({
                   marginLeft: 15,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  marginTop:10
+                  marginTop: 10,
                 }}
               >
                 <Text>roomID:</Text>
@@ -305,6 +323,8 @@ function CallScreen({
                 <Button
                   mode="contained"
                   onPress={() => {
+                    debugger;
+                    join({ roomID: item[0], displayName: userId });
                     // dispatch({ type: 'call/callSomeOne', payload: {} })
                   }}
                   loading={calling}
@@ -360,7 +380,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderColor: 'lightgray',
     borderWidth: 1,
-    
   },
   value: { fontSize: 20 },
   nutrition: {

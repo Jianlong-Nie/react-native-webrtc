@@ -83,6 +83,7 @@ io.sockets.on('connection', (socket) => {
   console.log('====================================');
   console.log('连接成功：' + socket.id);
   console.log('====================================');
+  socket.emit('c-success');
   socket.on('join', (joinData, callback) => {
     let roomId = joinData.roomID;
     let displayName = joinData.displayName;
@@ -135,15 +136,29 @@ io.sockets.on('connection', (socket) => {
   socket.on('newroom-server', function (room, error) {
     createNewRoom(room, error);
   });
-  socket.on('disconnect', () => {
-    console.log('disconnect');
+  socket.on('disconnect', function () {
+    console.log('Disconnect');
 
+    for (let roomId in roomList) {
+      for (let i = 0; i < roomList[roomId].participant.length; i++) {
+        if (roomList[roomId].participant[i].socketId == socket.id) {
+          io.emit('leave-client', roomList[roomId].participant[i]);
+          roomList[roomId].participant.splice(i, 1);
+          break;
+        }
+      }
+      setTimeout(function () {
+        if (
+          roomList.hasOwnProperty(roomId) &&
+          roomList[roomId].participant.length === 0
+        ) {
+          io.emit('leaveall-client', roomId);
+          delete roomList[roomId];
+        }
+      }, 3000);
+    }
     if (socket.room) {
-      let room = socket.room;
-      io.to(room).emit('leave', socket.id);
-      socket.leave(room);
-
-      console.log('leave');
+      socket.leave(socket.room);
     }
   });
 });
