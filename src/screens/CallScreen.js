@@ -39,12 +39,13 @@ function CallScreen({
   const navigation = useNavigation();
   const { width, height } = Dimensions.get('window');
   const [friends, setFriends] = useState([]);
-  const [muted, setMuted] = useState(false);
-  function setAudioMuted(mymuted) {
+  const [enbled, setEnbled] = useState(false);
+  function setAudioEnbled(mymuted) {
     myStream.getTracks().forEach((t) => {
+      debugger;
       if (t.kind === 'audio') t.enabled = mymuted;
     });
-    setMuted(mymuted);
+    setEnbled(mymuted);
   }
   //change the config as you need
   useEffect(() => {
@@ -175,6 +176,7 @@ function CallScreen({
         const localDescription = await peer.createOffer();
         await peer.setLocalDescription(localDescription);
         socket.emit('exchange', { to: socketId, sdp: peer.localDescription });
+
         //setAudioMuted(false);
         // myStream.getTracks().forEach((t) => {
         //   if (t.kind === 'audio') t.enabled = false;
@@ -182,7 +184,7 @@ function CallScreen({
         // });
       }
     };
-
+    setAudioEnbled(!isOffer);
     peer.addStream(myStream);
     peer.onaddstream = (event) => {
       remoteList[socketId] = event.stream.toURL();
@@ -414,31 +416,11 @@ function CallScreen({
               source={require('../images/Close.png')}
             ></Image>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              debugger;
-              dispatch({ type: 'call/setShowSheet', payload: false });
-            }}
-            style={{
-              width: 50,
-              height: 50,
-              position: 'absolute',
-              right: 10,
-            }}
-          >
-            <Image
-              style={{
-                width: 50,
-                height: 50,
-              }}
-              source={require('../images/Close.png')}
-            ></Image>
-          </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => {
               debugger;
-              setAudioMuted(true);
+              setAudioEnbled(!enbled);
             }}
             style={{
               width: 50,
@@ -454,11 +436,15 @@ function CallScreen({
                 height: 50,
                 resizeMode: 'contain',
               }}
-              source={require('../images/jingyin.png')}
+              source={
+                enbled
+                  ? require('../images/sound.png')
+                  : require('../images/jingyin.png')
+              }
             ></Image>
           </TouchableOpacity>
 
-          <View style={{ marginTop: 40, marginLeft: 15 }}>
+          <View style={{ marginTop: 40, marginLeft: 15, marginTop: 150 }}>
             <Text style={{ color: 'white', fontSize: 20 }}>
               {`You are in a chat room called: `}
             </Text>
