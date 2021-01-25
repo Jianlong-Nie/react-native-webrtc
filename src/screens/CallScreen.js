@@ -44,7 +44,7 @@ function CallScreen({
     });
   }, []);
   useEffect(() => {
-    if (socketActive) {
+    if (socket.connected) {
       try {
         InCallManager.start({ media: 'audio' });
         InCallManager.setForceSpeakerphoneOn(true);
@@ -55,7 +55,7 @@ function CallScreen({
       console.log(InCallManager);
       socket.emit('login', userId);
     }
-  }, [socketActive]);
+  }, [socket.connected]);
 
   useEffect(() => {
     let timer = null;
@@ -240,7 +240,7 @@ function CallScreen({
       const track = pc.getRemoteStreams()[0].getAudioTracks()[0];
       let callback = (report) => console.log('getStats report', report);
       //console.log('track', track);
-      pc.getStats(track, callbackdff);
+      pc.getStats(track, callback);
     }
   };
 
@@ -264,7 +264,7 @@ function CallScreen({
           loading={calling}
           //   style={styles.btn}
           contentStyle={styles.btnContent}
-          disabled={!(socketActive && userId.length > 0)}
+          disabled={!(socket.connected && userId.length > 0)}
         >
           CREATE A ROOM
         </Button>
@@ -330,7 +330,7 @@ function CallScreen({
                   loading={calling}
                   style={{ marginRight: 10, marginBottom: 10 }}
                   contentStyle={{ fontSize: 15 }}
-                  disabled={!(socketActive && userId.length > 0)}
+                  disabled={!(socket.connected && userId.length > 0)}
                 >
                   JOIN
                 </Button>
