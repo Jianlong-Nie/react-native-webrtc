@@ -129,6 +129,9 @@ function CallScreen({
 
   useEffect(() => {
     dispatch({ type: 'call/getMedia' });
+    return () => {
+      ileave();
+    };
   }, []);
   myStream = localStream;
   console.log('====================================');
@@ -207,6 +210,9 @@ function CallScreen({
       if (event.target.iceConnectionState === 'connected') {
         //console.log('event.target.iceConnectionState === 'connected'');
       }
+      if (event.target.iceConnectionState === 'disconnected') {
+        console.log('event.target.iceConnectionState === disconnected');
+      }
     };
     peer.onsignalingstatechange = (event) => {
       //console.log('on signaling state change', event.target.signalingState);
@@ -257,6 +263,20 @@ function CallScreen({
     //   remoteList: remoteList,
     // });
   };
+  function ileave() {
+    debugger;
+
+    const keys = Object.keys(pcPeers);
+    keys.forEach((key) => {
+      const pc = pcPeers[key];
+      debugger;
+      pc.close();
+    });
+    // socket.disconnect();
+    socket.emit('leave');
+    pcPeers = {};
+    dispatch({ type: 'call/changeRemoteList', payload: [] });
+  }
 
   const mapHash = (hash, func) => {
     //console.log(hash);
@@ -399,6 +419,8 @@ function CallScreen({
           <TouchableOpacity
             onPress={() => {
               debugger;
+
+              ileave();
               dispatch({ type: 'call/setShowSheet', payload: false });
             }}
             style={{

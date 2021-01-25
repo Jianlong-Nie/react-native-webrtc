@@ -129,6 +129,29 @@ io.sockets.on('connection', (socket) => {
     var socketIds = socketIdsInRoom(roomId);
     callback(socketIds.length);
   });
+  socket.on('leave', function () {
+    for (let roomId in roomList) {
+      for (let i = 0; i < roomList[roomId].participant.length; i++) {
+        if (roomList[roomId].participant[i].socketId == socket.id) {
+          io.emit('leave-client', roomList[roomId].participant[i]);
+          roomList[roomId].participant.splice(i, 1);
+          break;
+        }
+      }
+      setTimeout(function () {
+        if (
+          roomList.hasOwnProperty(roomId) &&
+          roomList[roomId].participant.length === 0
+        ) {
+          io.emit('leaveall-client', roomId);
+          delete roomList[roomId];
+        }
+      }, 3000);
+    }
+    if (socket.room) {
+      socket.leave(socket.room);
+    }
+  });
   socket.on('list-server', function (data, callback) {
     callback(roomList);
   });

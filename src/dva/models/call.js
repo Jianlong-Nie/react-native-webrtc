@@ -1,4 +1,3 @@
-import { loginMobilePwd, openidIsExits, auth } from '../../network/api';
 import { navigate } from '../../routers/RootNavigation';
 import { isPhoneAvailable } from '../../utils';
 import { getItem, setItem } from '../../utils/storage';
@@ -16,6 +15,7 @@ const initState = {
   calling: false,
   showSheet: false,
   localStream: { toURL: () => null },
+  // socket: Socket('ws://207.254.40.176:4000'),
   socket: Socket('ws://192.168.2.201:4000'),
   callToUsername: '',
   roomID: '',
